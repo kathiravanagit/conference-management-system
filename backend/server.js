@@ -59,6 +59,8 @@ app.use('/api/assistant', require('./routes/assistant'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/admin', require('./routes/admin'));
 
+
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({ success: true, message: 'Server is running' });
