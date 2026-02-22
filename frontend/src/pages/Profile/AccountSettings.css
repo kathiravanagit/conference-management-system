@@ -1,0 +1,82 @@
+.account-page {
+  max-width: 980px;
+  margin: 2rem auto;
+  padding: 0 1.2rem 2rem;
+}
+
+.account-card {
+  background: var(--surface-100);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-1);
+  padding: 1.6rem;
+}
+
+.account-card h1 {
+  margin: 0 0 1rem;
+}
+
+.account-section {
+  padding: 1.2rem 0;
+  border-top: 1px solid rgba(12, 21, 38, 0.08);
+}
+
+.account-section:first-of-type {
+  border-top: none;
+  padding-top: 0.6rem;
+}
+
+.account-section h2 {
+  margin: 0 0 1rem;
+  font-size: 1.3rem;
+}
+
+.account-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.9rem;
+}
+
+.account-form .form-group {
+  margin: 0;
+}
+
+.account-form input {
+  width: 100%;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.98rem;
+}
+
+.account-form input:focus {
+  outline: none;
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 3px rgba(18, 140, 111, 0.15);
+}
+
+.account-success {
+  background: rgba(11, 110, 79, 0.12);
+  color: var(--brand-700);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  margin: 0 0 0.9rem;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+  color: var(--ink-700);
+}
+
+.account-link-btn {
+  width: fit-content;
+}
+
+@media (max-width: 640px) {
+  .account-card {
+    padding: 1.2rem;
+  }
+}

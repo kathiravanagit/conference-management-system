@@ -1,0 +1,52 @@
+# 🎓 ConferenceHub - Requirements
+
+This project uses the MERN stack (MongoDB, Express, React, Node).
+For development, you only need Node.js and MongoDB installed on your system.
+
+## 🛠 System Requirements
+- **Node.js**: v16+ (Recommended: v18 or v20 LTS)
+- **NPM**: v8+ (comes with Node)
+- **Database**: MongoDB v5.0+ (Local server or MongoDB Atlas Cloud)
+- **Git**: v2+
+
+## 📦 Core Backend Dependencies (`package.json`)
+- `express`: Next-gen web framework for Node.js
+- `mongoose`: MongoDB object modeling tool
+- `jsonwebtoken`: JWT authentication
+- `bcryptjs`: Password hashing
+- `dotenv`: Environment variable management
+- `cors`: Cross-Origin Resource Sharing
+- `speakeasy`: Dual-Factor Authentication (2FA) support
+- `qrcode`: QR code generation for registrations
+- `pdfkit`: Dynamic PDF certificate generation
+- `socket.io`: Real-time bidirectional Q&A systems
+- `@sendinblue/client`: Transactional email service (Brevo)
+
+## 🎨 Core Frontend Dependencies (`package.json`)
+- `react` & `react-dom`: UI rendering (v18+)
+- `react-router-dom`: Client-side routing for SPAs
+- `axios`: Promise-based HTTP client
+- `react-icons`: Modular SVG icon library
+- `date-fns`: Modern JavaScript date utility library
+- `socket.io-client`: Frontend WebSocket integration
+- `qrcode.react`: React component for creating QR codes
+- `jsQR`: QR code scanner via device cameras (CDN/Browser)
+
+## 📥 Installation
+
+Instead of installing dependencies manually here, run the following in your terminal:
+
+```bash
+# Backend Install
+cd backend
+npm install
+
+# Frontend Install
+cd frontend
+npm install
+```
+
+## ⚙️ Ports Required
+- `5000` — Backend API Server
+- `3000` — React Development Server
+- `27017` — MongoDB Default Database Port

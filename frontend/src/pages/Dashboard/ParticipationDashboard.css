@@ -1,0 +1,480 @@
+.participation-dashboard {
+  min-height: 100vh;
+  padding: 2rem 1.2rem 3rem;
+}
+
+.dashboard-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.dashboard-header h1 {
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  color: var(--ink-900);
+  margin: 0 0 0.5rem 0;
+}
+
+.dashboard-header .subtitle {
+  color: var(--ink-500);
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Statistics Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.stat-card {
+  background: var(--card-bg);
+  border-radius: 14px;
+  padding: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: var(--shadow-1);
+  border: 1px solid var(--card-border);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-2);
+}
+
+.stat-icon {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+
+.stat-icon--reg {
+  background: linear-gradient(135deg, #6366f1, #818cf8);
+}
+
+.stat-icon--att {
+  background: linear-gradient(135deg, #10b981, #34d399);
+}
+
+.stat-icon--cert {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  color: #fff;
+}
+
+.stat-icon--pts {
+  background: linear-gradient(135deg, #ec4899, #f472b6);
+}
+
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-label {
+  font-size: 0.72rem;
+  color: var(--ink-300);
+  margin: 0;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-number {
+  font-size: 1.6rem;
+  font-weight: bold;
+  color: var(--brand-700);
+  margin: 0.2rem 0 0 0;
+}
+
+/* Progress Section */
+.progress-section {
+  background: var(--card-bg);
+  border-radius: 14px;
+  padding: 1.4rem;
+  margin-bottom: 2.5rem;
+  box-shadow: var(--shadow-1);
+  border: 1px solid var(--card-border);
+  transition: background 0.3s ease;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+  font-weight: 600;
+}
+
+.progress-percentage {
+  font-size: 1.2rem;
+  color: var(--brand-700);
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background: var(--surface-300);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 0.6rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand-600), var(--brand-500));
+  transition: width 0.3s ease;
+  border-radius: 10px;
+}
+
+.progress-text {
+  color: var(--ink-500);
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+/* Filter Tabs */
+.filter-tabs {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1.8rem;
+  flex-wrap: wrap;
+}
+
+.filter-tab {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink-500);
+  font-size: 0.88rem;
+  transition: all 0.2s ease;
+}
+
+.filter-tab:hover {
+  border-color: var(--brand-600);
+  color: var(--brand-700);
+}
+
+.filter-tab.active {
+  background: var(--brand-700);
+  color: white;
+  border-color: var(--brand-700);
+}
+
+/* Registrations List */
+.registrations-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.2rem;
+}
+
+/* Participation Cards */
+.participation-card {
+  background: var(--card-bg);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+  border: 1px solid var(--card-border);
+  transition: all 0.3s ease;
+}
+
+.participation-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-2);
+}
+
+.card-header {
+  padding: 1rem 1rem 0.85rem;
+  background: var(--surface-200);
+  border-bottom: 1px solid var(--card-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.card-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  flex: 1;
+  word-break: break-word;
+  color: var(--ink-900);
+  line-height: 1.4;
+}
+
+/* ── Status badges — solid, always readable ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.69rem;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.badge-registered {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.badge-attended {
+  background: #10b981;
+  color: #fff;
+}
+
+.badge-certified {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.badge-cancelled {
+  background: #ef4444;
+  color: #fff;
+}
+
+.card-details {
+  padding: 0.9rem 1rem;
+  background: var(--card-bg);
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.48rem 0;
+  border-bottom: 1px solid var(--divider);
+  font-size: 0.83rem;
+  gap: 0.5rem;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-row .label {
+  font-weight: 600;
+  color: var(--ink-600);
+  flex-shrink: 0;
+  min-width: 90px;
+}
+
+.detail-row .value {
+  color: var(--ink-900);
+  text-align: right;
+  flex: 1;
+  word-break: break-all;
+}
+
+/* Card Actions */
+.card-actions {
+  padding: 0.75rem 1rem;
+  background: var(--card-bg);
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.card-actions .action-btn {
+  flex: 1;
+  min-width: 80px;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  text-decoration: none;
+}
+
+.action-qr {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.action-qr:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.action-cert {
+  background: rgba(234, 179, 8, 0.1);
+  color: #ca8a04;
+}
+
+.action-cert:hover {
+  background: rgba(234, 179, 8, 0.2);
+}
+
+.action-attend {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.action-attend:hover {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 3.5rem 1.5rem;
+  background: var(--card-bg);
+  border-radius: 14px;
+  color: var(--ink-300);
+  border: 1px solid var(--card-border);
+}
+
+.empty-state p {
+  font-size: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .registrations-list {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-tabs {
+    flex-direction: column;
+  }
+
+  .filter-tab {
+    width: 100%;
+    text-align: center;
+  }
+
+  .card-header {
+    flex-direction: column;
+  }
+
+  .card-details {
+    padding: 0.75rem;
+  }
+
+  .card-actions {
+    flex-direction: column;
+  }
+
+  .card-actions .action-btn {
+    min-width: unset;
+  }
+
+  .detail-row {
+    flex-direction: column;
+    align-items: start;
+  }
+
+  .detail-row .value {
+    margin-left: 0;
+    margin-top: 0.2rem;
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .participation-dashboard {
+    padding: 1rem 0.8rem 2rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-header h1 {
+    font-size: 1.4rem;
+  }
+}
+
+/* ── Waitlisted badge ── */
+.badge-waitlisted {
+  background: #f59e0b;
+  color: #fff;
+}
+
+/* ── Inline feedback form ── */
+.feedback-inline {
+  margin-top: 0.8rem;
+  padding: 0.8rem 1rem;
+  background: var(--surface-200);
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+}
+
+.feedback-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-600);
+}
+
+.star-row {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.6rem;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: var(--ink-300, #cbd5e1);
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s, transform 0.1s;
+}
+
+.star-btn:hover,
+.star-btn.star-filled {
+  color: #f59e0b;
+  transform: scale(1.15);
+}
+
+.feedback-comment {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.83rem;
+  background: var(--card-bg);
+  color: var(--ink-900);
+  resize: vertical;
+  margin-bottom: 0.6rem;
+}
+
+.feedback-done {
+  margin-top: 0.8rem;
+  font-size: 0.82rem;
+  color: #10b981;
+  font-weight: 600;
+  text-align: center;
+}

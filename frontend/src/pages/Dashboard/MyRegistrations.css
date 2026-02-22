@@ -1,0 +1,167 @@
+.my-registrations {
+  min-height: calc(100vh - 80px);
+  padding: 2.5rem 2rem 4rem;
+}
+
+.registrations-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.registrations-container h1 {
+  color: var(--ink-900);
+  margin-bottom: 2rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: var(--card-bg);
+  border-radius: 16px;
+  color: var(--ink-300);
+  box-shadow: var(--shadow-1);
+}
+
+.registrations-list {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.registration-card {
+  background: var(--card-bg);
+  border-radius: 18px;
+  padding: 1.6rem;
+  box-shadow: var(--shadow-1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid var(--card-border);
+}
+
+.registration-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-2);
+}
+
+.registration-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--divider);
+  padding-bottom: 1rem;
+}
+
+.registration-header h3 {
+  margin: 0;
+  color: var(--ink-900);
+}
+
+.status {
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+.status.registered {
+  background: rgba(11, 110, 79, 0.12);
+  color: var(--brand-700);
+}
+
+.status.attended {
+  background: rgba(27, 177, 138, 0.16);
+  color: var(--brand-700);
+}
+
+.status.cancelled {
+  background: rgba(255, 138, 60, 0.18);
+  color: #b04a08;
+}
+
+.registration-details {
+  margin: 1rem 0;
+  color: var(--ink-500);
+  line-height: 1.8;
+}
+
+.registration-details p {
+  margin: 0.5rem 0;
+}
+
+.registration-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(12, 21, 38, 0.08);
+}
+
+.btn-join,
+.btn-generate-cert,
+.btn-cancel {
+  padding: 0.65rem 1.3rem;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.2s ease;
+  text-decoration: none;
+  text-align: center;
+}
+
+.btn-join {
+  background: linear-gradient(135deg, var(--brand-600), var(--brand-500));
+  color: #fff;
+}
+
+.btn-join:hover {
+  transform: translateY(-2px);
+}
+
+.btn-generate-cert {
+  background: rgba(27, 177, 138, 0.15);
+  color: var(--brand-700);
+}
+
+.btn-generate-cert:hover {
+  transform: translateY(-2px);
+}
+
+.btn-cancel {
+  background: rgba(255, 138, 60, 0.18);
+  color: #b04a08;
+}
+
+.btn-cancel:hover {
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .registration-actions {
+    flex-direction: column;
+  }
+
+  .btn-join,
+  .btn-generate-cert,
+  .btn-cancel {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .my-registrations {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .registration-card {
+    padding: 1.2rem;
+  }
+
+  .registration-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.8rem;
+  }
+}
