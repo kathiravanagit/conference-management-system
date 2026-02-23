@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ErrorMessage from '../../components/ui/ErrorMessage';
+import EyeIcon from '../../components/ui/EyeIcon';
 import './Auth.css';
 
 const ResetPassword = () => {
@@ -16,6 +18,8 @@ const ResetPassword = () => {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { resetPassword } = useAuth();
 
   const handleChange = (e) => {
@@ -89,26 +93,66 @@ const ResetPassword = () => {
 
           <div className="form-group">
             <label htmlFor="newPassword">New Password</label>
-            <input
-              id="newPassword"
-              name="newPassword"
-              type="password"
-              value={formData.newPassword}
-              onChange={handleChange}
-              required
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                id="newPassword"
+                name="newPassword"
+                type={showNewPassword ? 'text' : 'password'}
+                value={formData.newPassword}
+                onChange={handleChange}
+                required
+                style={{ paddingRight: '2.5rem' }}
+              />
+              <button
+                type="button"
+                aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowNewPassword((prev) => !prev)}
+                style={{
+                  position: 'absolute',
+                  right: '0.5rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                }}
+              >
+                <EyeIcon open={showNewPassword} />
+              </button>
+            </div>
           </div>
 
           <div className="form-group">
             <label htmlFor="confirmPassword">Confirm Password</label>
-            <input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+                style={{ paddingRight: '2.5rem' }}
+              />
+              <button
+                type="button"
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                style={{
+                  position: 'absolute',
+                  right: '0.5rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                }}
+              >
+                <EyeIcon open={showConfirmPassword} />
+              </button>
+            </div>
           </div>
 
           <button type="submit" disabled={loading}>
