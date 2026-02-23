@@ -62,6 +62,23 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const googleLogin = async (credential) => {
+    try {
+      const response = await axios.post('/api/auth/google', { credential });
+      if (response.data.requires2FA) {
+        return response.data;
+      }
+
+      setToken(response.data.token);
+      setUser(response.data.user);
+      localStorage.setItem('token', response.data.token);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const register = async (name, email, password, department, role) => {
     try {
       const response = await axios.post('/api/auth/register', {
@@ -169,6 +186,7 @@ export const AuthProvider = ({ children }) => {
     token,
     loading,
     login,
+    googleLogin,
     register,
     confirmLogin,
     verifyTwoFactor,

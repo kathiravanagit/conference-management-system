@@ -9,6 +9,8 @@ const {
   sendLoginConfirmationEmail,
   sendPasswordResetEmail,
 } = require('../utils/email');
+const { OAuth2Client } = require('google-auth-library');
+const crypto = require('crypto');
 const { createAuditLog } = require('../services/auditLogService');
 const {
   generateTwoFactorSecret,
@@ -797,6 +799,119 @@ exports.changePassword = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+/**
+ * Login or Register user via Google OAuth
+ * POST /api/auth/google
+ */
+exports.googleLogin = async (req, res, next) => {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({
+        success: false,
+        message: 'No credentials provided',
+      });
+    }
+
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'dummy-client-id');
+
+    // Instead of verifying id_token which requires a specific oauth flow, we verify access_token 
+    // by fetching the user profile securely from Google
+    const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${credential}` }
+    });
+
+    if (!response.ok) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid Google token',
+      });
+    }
+
+    const payload = await response.json();
+    const { email, name, picture } = payload;
+
+    let user = await User.findOne({ email }).select('+password');
+
+    if (!user) {
+      // Create user if they don't exist
+      const randomPassword = crypto.randomBytes(16).toString('hex');
+      user = await User.create({
+        name,
+        email,
+        password: randomPassword,
+        department: 'OTHER', // Default for Google login
+        role: 'student',
+        photo: picture,
+      });
+
+      // Automatically confirm email since Google has verified it
+      user.isEmailConfirmed = true;
+      user.isVerified = true;
+      await user.save();
+
+      await createAuditLog({
+        userId: user._id,
+        action: 'REGISTER_GOOGLE',
+        email: user.email,
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+    }
+
+    // Two factor bypass or require? Let's check:
+    if (user.twoFactorEnabled) {
+      const twoFactorToken = generateToken(user._id, user.role, true);
+
+      await createAuditLog({
+        userId: user._id,
+        action: 'LOGIN_ATTEMPT_GOOGLE',
+        email: user.email,
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+        metadata: { twoFactorRequired: true },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Two-factor verification required',
+        requires2FA: true,
+        twoFactorToken,
+      });
+    }
+
+    const token = generateToken(user._id, user.role);
+
+    await createAuditLog({
+      userId: user._id,
+      action: 'LOGIN_SUCCESS_GOOGLE',
+      email: user.email,
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
+    res.status(200).json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        department: user.department,
+        photo: user.photo,
+      },
+    });
+
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: 'Google authentication failed: ' + error.message,
     });
   }
 };

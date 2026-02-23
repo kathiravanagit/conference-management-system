@@ -216,6 +216,26 @@ exports.ask = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Please provide a question.' });
         }
 
+        const text = question.toLowerCase().trim();
+
+        // --- LLM-like conversational fallback ---
+        if (/^(hi|hello|hey|greetings|hola|sup|good morning|good evening|good afternoon)([^a-z]|$)/.test(text)) {
+            return res.json({ success: true, matched: true, answer: "Hello! I am **KatBot**, your friendly virtual assistant. How can I assist you with your conferences today?", category: 'general', score: 1 });
+        }
+        if (/^(how are you|how do you do|how are things)/.test(text)) {
+            return res.json({ success: true, matched: true, answer: "I'm just a few lines of code, but I'm doing fantastic! Thanks for asking. How can I help you?", category: 'general', score: 1 });
+        }
+        if (/^(who are you|what are you|what is your name)/.test(text)) {
+            return res.json({ success: true, matched: true, answer: "I am **KatBot**, an intelligent and fast virtual assistant for ConferenceHub. I can help you with registrations, meetings, certificates, and more!", category: 'general', score: 1 });
+        }
+        if (/^(thank you|thanks|thx|tysm)$/.test(text)) {
+            return res.json({ success: true, matched: true, answer: "You're very welcome! If you need anything else, just let me know.", category: 'general', score: 1 });
+        }
+        if (/^(ok|okay|cool|nice|awesome|great|good)$/.test(text)) {
+            return res.json({ success: true, matched: true, answer: "Awesome! Let me know if you need any help navigating ConferenceHub.", category: 'general', score: 1 });
+        }
+        // -----------------------------------------
+
         const queryKeywords = extractKeywords(question);
         const allFAQs = await ChatFAQ.find({});
 

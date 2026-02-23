@@ -142,3 +142,109 @@
     padding: 1.8rem 1.4rem;
   }
 }
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0;
+  color: var(--ink-500);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--divider);
+}
+
+.auth-divider::before {
+  margin-right: 1em;
+}
+
+.auth-divider::after {
+  margin-left: 1em;
+}
+
+.google-btn {
+  width: 100%;
+  padding: 0.85rem;
+  background: var(--surface-100);
+  color: var(--ink-900);
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  margin-bottom: 0.5rem;
+  text-decoration: none;
+}
+
+.google-btn:hover {
+  background: var(--surface-200);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.google-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0;
+  color: var(--ink-500);
+  font-size: 0.9rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--divider);
+}
+
+.auth-divider span {
+  padding: 0 10px;
+}
+
+.google-btn {
+  width: 100%;
+  padding: 0.85rem;
+  background: var(--surface-50);
+  color: var(--ink-900);
+  border: 1px solid var(--input-border);
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-1);
+}
+
+.google-btn:hover {
+  background: var(--surface-200);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(12, 21, 38, 0.08);
+}
+
+.google-btn img {
+  width: 20px;
+  height: 20px;
+}

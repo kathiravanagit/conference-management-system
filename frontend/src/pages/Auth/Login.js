@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useGoogleLogin } from '@react-oauth/google';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import './Auth.css';
 
@@ -14,9 +15,30 @@ const Login = () => {
   const [requires2FA, setRequires2FA] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [twoFactorToken, setTwoFactorToken] = useState('');
-  const { login, logout, verifyTwoFactor } = useAuth();
+  const { login, googleLogin, logout, verifyTwoFactor } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const handleGoogleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setError('');
+      setLoading(true);
+      try {
+        const result = await googleLogin(tokenResponse.access_token);
+        if (result?.requires2FA) {
+          setRequires2FA(true);
+          setTwoFactorToken(result.twoFactorToken);
+          setInfo(result.message || 'Two-factor verification required.');
+          return;
+        }
+        navigate('/conferences');
+      } catch (err) {
+        setError(err.response?.data?.message || 'Google login failed');
+      } finally {
+        setLoading(false);
+      }
+    }
+  });
 
   React.useEffect(() => {
     if (location.state?.message) {
@@ -124,41 +146,41 @@ const Login = () => {
             </div>
           ) : (
             <>
-          <div className="form-group">
-            <label htmlFor="role">Account Type</label>
-            <select
-              id="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-            >
-              <option value="student">Student</option>
-              <option value="staff">Staff</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
+              <div className="form-group">
+                <label htmlFor="role">Account Type</label>
+                <select
+                  id="role"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                >
+                  <option value="student">Student</option>
+                  <option value="staff">Staff</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            <div className="auth-helper">
-              <Link to="/forgot-password">Forgot password?</Link>
-            </div>
-          </div>
+              <div className="form-group">
+                <label htmlFor="password">Password</label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <div className="auth-helper">
+                  <Link to="/forgot-password">Forgot password?</Link>
+                </div>
+              </div>
             </>
           )}
 
@@ -166,6 +188,22 @@ const Login = () => {
             {loading ? 'Please wait...' : requires2FA ? 'Verify' : 'Login'}
           </button>
         </form>
+        {!requires2FA && (
+          <>
+            <div className="auth-divider">
+              <span>or</span>
+            </div>
+
+            <button
+              type="button"
+              className="google-btn"
+              onClick={() => handleGoogleLogin()}
+            >
+              <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" />
+              Continue with Google
+            </button>
+          </>
+        )}
 
         {!requires2FA && (
           <p className="auth-link">

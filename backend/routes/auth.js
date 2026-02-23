@@ -17,6 +17,7 @@ const {
   getMe,
   updateProfile,
   changePassword,
+  googleLogin,
 } = require('../controllers/authController');
 const { protect, require2FAComplete } = require('../middleware/auth');
 
@@ -27,6 +28,7 @@ const { protect, require2FAComplete } = require('../middleware/auth');
 // Public routes
 router.post('/register', register);
 router.post('/login', login);
+router.post('/google', googleLogin);
 router.get('/confirm-login', confirmLogin);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);

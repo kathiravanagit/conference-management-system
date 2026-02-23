@@ -37,7 +37,7 @@ const SendIcon = () => (
 
 const BotAvatar = () => (
     <div className="va-avatar-wrapper">
-        <span className="va-avatar-letter">K</span>
+        <img src="/logo.png" alt="KatBot Logo" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
     </div>
 );
 
@@ -78,6 +78,44 @@ const VirtualAssistant = () => {
         setShowSuggestions(false);
         setMessages((prev) => [...prev, { from: 'user', text: q, time: new Date() }]);
         setLoading(true);
+
+        const lowerQ = q.toLowerCase();
+
+        // Fast LLM-like responses for common inputs
+        const greetings = ['hi', 'hello', 'hey', 'hi katbot', 'hello katbot'];
+        if (greetings.includes(lowerQ)) {
+            setTimeout(() => {
+                setMessages((prev) => [
+                    ...prev,
+                    { from: 'bot', text: 'Hello there! How can I assist you today?', category: 'general', time: new Date() },
+                ]);
+                setLoading(false);
+            }, 300);
+            return;
+        }
+
+        if (lowerQ.includes('how are you')) {
+            setTimeout(() => {
+                setMessages((prev) => [
+                    ...prev,
+                    { from: 'bot', text: "I'm doing great, thanks for asking! I'm here to help you navigate ConferenceHub.", category: 'general', time: new Date() },
+                ]);
+                setLoading(false);
+            }, 300);
+            return;
+        }
+
+        if (lowerQ.includes('who are you') || lowerQ.includes('what are you')) {
+            setTimeout(() => {
+                setMessages((prev) => [
+                    ...prev,
+                    { from: 'bot', text: `I am **${BOT_NAME}**, your dedicated AI assistant. I can help answer questions about registration, schedules, and more!`, category: 'general', time: new Date() },
+                ]);
+                setLoading(false);
+            }, 300);
+            return;
+        }
+
         try {
             const res = await axios.post('/api/assistant/ask', { question: q });
             setMessages((prev) => [
