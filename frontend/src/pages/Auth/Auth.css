@@ -93,7 +93,7 @@
   box-shadow: 0 0 0 3px rgba(27, 177, 138, 0.2);
 }
 
-.auth-card form button {
+.auth-card form button[type="submit"] {
   width: 100%;
   padding: 0.85rem;
   background: linear-gradient(135deg, var(--brand-600), var(--brand-500));
@@ -107,12 +107,12 @@
   box-shadow: 0 12px 24px rgba(27, 177, 138, 0.2);
 }
 
-.auth-card form button:hover:not(:disabled) {
+.auth-card form button[type="submit"]:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 16px 28px rgba(27, 177, 138, 0.28);
 }
 
-.auth-card form button:disabled {
+.auth-card form button[type="submit"]:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
