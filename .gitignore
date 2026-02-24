@@ -60,8 +60,8 @@ public/uploads/
 backend/uploads/
 
 # Certificates and media
-certificates/
-media/
+/backend/certificates/
+/backend/media/
 downloads/
 
 # Database backups
