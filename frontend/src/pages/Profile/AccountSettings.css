@@ -55,6 +55,16 @@
   box-shadow: 0 0 0 3px rgba(18, 140, 111, 0.15);
 }
 
+.account-form button[type="button"] {
+  outline: none;
+  background: transparent;
+  color: var(--ink-500);
+}
+
+.account-form button[type="button"]:hover {
+  color: var(--ink-700);
+}
+
 .account-success {
   background: rgba(11, 110, 79, 0.12);
   color: var(--brand-700);

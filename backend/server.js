@@ -1,5 +1,5 @@
-// Auto-delete expired conferences
-require('./autoDeleteConferences')();
+// Auto-delete expired conferences (DISABLED)
+// require('./autoDeleteConferences')();
 
 
 

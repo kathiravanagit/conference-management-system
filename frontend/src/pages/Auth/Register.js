@@ -60,11 +60,13 @@ const Register = () => {
     setLoading(true);
 
     try {
+      const departmentToSubmit = formData.role === 'admin' ? 'IT' : formData.department;
+
       const response = await register(
         formData.name,
         formData.email,
         formData.password,
-        formData.department,
+        departmentToSubmit,
         formData.role
       );
       setInfo(response?.message || 'Registration successful. Please check your email.');
@@ -101,6 +103,7 @@ const Register = () => {
             >
               <option value="student">Student</option>
               <option value="staff">Staff</option>
+              <option value="admin">IT Admin</option>
             </select>
           </div>
           <div className="form-group">
@@ -159,24 +162,26 @@ const Register = () => {
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="department">Department</label>
-            <select
-              id="department"
-              name="department"
-              value={formData.department}
-              onChange={handleChange}
-            >
-              <option value="CSE">Computer Science (CSE)</option>
-              <option value="ECE">Electronics (ECE)</option>
-              <option value="MECH">Mechanical (MECH)</option>
-              <option value="AIML">AI & Machine Learning (AIML)</option>
-              <option value="EEE">Electrical & Electronics (EEE)</option>
-              <option value="FT">Food Technology (FT)</option>
-              <option value="IT">Information Technology (IT)</option>
-              <option value="OTHER">Other</option>
-            </select>
-          </div>
+          {formData.role !== 'admin' && (
+            <div className="form-group">
+              <label htmlFor="department">Department</label>
+              <select
+                id="department"
+                name="department"
+                value={formData.department}
+                onChange={handleChange}
+              >
+                <option value="CSE">Computer Science (CSE)</option>
+                <option value="ECE">Electronics (ECE)</option>
+                <option value="MECH">Mechanical (MECH)</option>
+                <option value="AIML">AI & Machine Learning (AIML)</option>
+                <option value="EEE">Electrical & Electronics (EEE)</option>
+                <option value="FT">Food Technology (FT)</option>
+                <option value="IT">Information Technology (IT)</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+          )}
 
           <button type="submit" disabled={loading}>
             {loading ? 'Registering...' : 'Register'}

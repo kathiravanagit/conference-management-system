@@ -82,10 +82,26 @@ const Conferences = () => {
     }
   };
 
-  const ongoingConferences = conferences.filter((c) => c.status === 'ongoing');
-  const upcomingConferences = conferences.filter((c) => c.status === 'upcoming');
-  const otherConferences = conferences.filter(
-    (c) => c.status !== 'ongoing' && c.status !== 'upcoming'
+  // Combine with completed conferences (archived ones) while keeping them unique
+  const mappedCompleted = completedConferences.map(cc => ({ ...cc, _id: cc.originalId || cc._id }));
+  const mergedConferences = [...conferences, ...mappedCompleted.filter(cc => !conferences.some(c => c._id === cc._id))];
+
+  // Restrict visibility based on user role
+  let visibleConferences = mergedConferences;
+  if (user) {
+    if (user.role === 'student') {
+      visibleConferences = visibleConferences.filter(c => c.department === user.department || c.department === 'ALL');
+    } else if (user.role === 'staff') {
+      visibleConferences = visibleConferences.filter(c => isCreator(c));
+    }
+    // 'admin' (IT Admin) sees all, so no filter needed
+  }
+
+  const ongoingConferences = visibleConferences.filter((c) => c.status === 'ongoing');
+  const upcomingConferences = visibleConferences.filter((c) => c.status === 'upcoming');
+  const completedConfs = visibleConferences.filter((c) => c.status === 'completed');
+  const otherConferences = visibleConferences.filter(
+    (c) => c.status !== 'ongoing' && c.status !== 'upcoming' && c.status !== 'completed'
   );
 
   // Keyword search filter applied on top
@@ -207,11 +223,11 @@ const Conferences = () => {
               <>
                 {renderSection('Ongoing Conferences', applySearch(ongoingConferences), '')}
                 {renderSection('Upcoming Conferences', applySearch(upcomingConferences), '')}
-                {isStaff && completedConferences.length > 0 && (
+                {isStaff && completedConfs.length > 0 && (
                   <div className="conferences-section">
                     <h2 className="section-title">Completed Conferences</h2>
                     <div className="conferences-grid">
-                      {applySearch(completedConferences).map((conference) => (
+                      {applySearch(completedConfs).map((conference) => (
                         <ConferenceCard
                           key={conference._id}
                           conference={conference}
@@ -224,18 +240,18 @@ const Conferences = () => {
                   </div>
                 )}
                 {renderSection('Other Conferences', applySearch(otherConferences), '')}
-                {applySearch(conferences).length === 0 && completedConferences.length === 0 && (
+                {applySearch(visibleConferences).length === 0 && (
                   <EmptyState status="matching" />
                 )}
               </>
             ) : filter.status === 'completed' ? (
               <div className="conferences-section">
                 <h2 className="section-title">Completed Conferences</h2>
-                {applySearch(completedConferences).length === 0 ? (
+                {applySearch(completedConfs).length === 0 ? (
                   <EmptyState status="completed" />
                 ) : (
                   <div className="conferences-grid">
-                    {applySearch(completedConferences).map((conference) => (
+                    {applySearch(completedConfs).map((conference) => (
                       <ConferenceCard
                         key={conference._id}
                         conference={conference}
@@ -249,11 +265,11 @@ const Conferences = () => {
               </div>
             ) : (
               <>
-                {applySearch(conferences).length === 0 ? (
+                {applySearch(visibleConferences).filter(c => c.status === filter.status).length === 0 ? (
                   <EmptyState status={filter.status} />
                 ) : (
                   <div className="conferences-grid">
-                    {applySearch(conferences).map((conference) => (
+                    {applySearch(visibleConferences).filter(c => c.status === filter.status).map((conference) => (
                       <ConferenceCard
                         key={conference._id}
                         conference={conference}

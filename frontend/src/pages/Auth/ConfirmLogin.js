@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import ErrorMessage from '../../components/ui/ErrorMessage';
 import './Auth.css';
 
 const ConfirmLogin = () => {
@@ -35,10 +36,9 @@ const ConfirmLogin = () => {
           }, 1200);
           return;
         }
-
         setStatus('success');
-        setMessage('Login confirmed. Redirecting...');
-        setTimeout(() => navigate('/conferences'), 1200);
+        setMessage('Confirmation successful. Now use Conference Hub. Redirecting...');
+        setTimeout(() => navigate('/conferences'), 3000);
       } catch (error) {
         setStatus('error');
         setMessage(error.response?.data?.message || 'Login confirmation failed');
@@ -51,10 +51,14 @@ const ConfirmLogin = () => {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h2>Confirming Login</h2>
+        <h2>{status === 'success' ? 'Confirmation Successful!' : 'Confirming Login'}</h2>
         {status === 'loading' && <p className="auth-subtitle">Verifying your request...</p>}
-        {status === 'success' && <div className="info-message">{message}</div>}
-        {status === 'error' && <div className="info-message">{message}</div>}
+        {status === 'success' && (
+          <div className="info-message" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+            {message}
+          </div>
+        )}
+        {status === 'error' && <ErrorMessage message={message} />}
       </div>
     </div>
   );

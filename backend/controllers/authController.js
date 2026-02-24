@@ -47,7 +47,7 @@ exports.register = async (req, res, next) => {
     }
 
     // Create new user
-    const allowedRoles = ['student', 'staff', 'it'];
+    const allowedRoles = ['student', 'staff', 'it', 'admin'];
     const normalizedRole = allowedRoles.includes(role) ? role : 'student';
 
     user = await User.create({

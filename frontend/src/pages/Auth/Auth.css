@@ -117,6 +117,21 @@
   cursor: not-allowed;
 }
 
+.auth-card form button[type="button"] {
+  width: auto;
+  padding: 0;
+  background: transparent;
+  color: var(--ink-500);
+  border: none;
+  box-shadow: none;
+}
+
+.auth-card form button[type="button"]:hover {
+  transform: none;
+  box-shadow: none;
+  color: var(--ink-700);
+}
+
 .auth-link {
   text-align: center;
   color: var(--ink-500);

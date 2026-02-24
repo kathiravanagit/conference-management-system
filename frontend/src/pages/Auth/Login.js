@@ -157,6 +157,7 @@ const Login = () => {
                 >
                   <option value="student">Student</option>
                   <option value="staff">Staff</option>
+                  <option value="admin">IT Admin</option>
                 </select>
               </div>
               <div className="form-group">
