@@ -6,7 +6,7 @@ const crypto = require('crypto');
  */
 exports.generateToken = (id, role, twoFactorPending = false) => {
   return jwt.sign({ id, role, twoFactorPending }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE,
+    expiresIn: process.env.JWT_EXPIRE || '7d',
   });
 };
 
