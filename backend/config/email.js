@@ -30,7 +30,7 @@ exports.sendEmail = async ({ to, subject, htmlContent }) => {
     console.log(`[OK] Email sent to ${to}`);
     return result;
   } catch (error) {
-    console.error('[ERROR] Email sending failed:', error.message);
+    console.error('[ERROR] Email sending failed:', error.response?.text || error.body || error);
     throw new Error('Failed to send email');
   }
 };
