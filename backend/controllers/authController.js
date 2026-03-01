@@ -106,7 +106,7 @@ exports.register = async (req, res, next) => {
  */
 exports.login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, rememberMe = true } = req.body;
 
     // Validation
     if (!email || !password) {
@@ -175,7 +175,7 @@ exports.login = async (req, res, next) => {
     }
 
     if (user.twoFactorEnabled) {
-      const twoFactorToken = generateToken(user._id, user.role, true);
+      const twoFactorToken = generateToken(user._id, user.role, true, rememberMe);
 
       await createAuditLog({
         userId: user._id,
@@ -194,7 +194,7 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    const token = generateToken(user._id, user.role);
+    const token = generateToken(user._id, user.role, false, rememberMe);
 
     await createAuditLog({
       userId: user._id,
@@ -912,6 +912,59 @@ exports.googleLogin = async (req, res, next) => {
     res.status(400).json({
       success: false,
       message: 'Google authentication failed: ' + error.message,
+    });
+  }
+};
+
+/**
+ * Delete User Account
+ * DELETE /api/auth/delete-account
+ */
+exports.deleteAccount = async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    // 1. Get user with password
+    const user = await User.findById(req.user.id).select('+password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // 2. Check password if user has one (they might only have google login)
+    if (user.password) {
+      if (!password) {
+        return res.status(400).json({ success: false, message: 'Please provide your password to confirm deletion.' });
+      }
+      const isMatch = await user.matchPassword(password);
+      if (!isMatch) {
+        return res.status(401).json({ success: false, message: 'Invalid password. Account deletion failed.' });
+      }
+    }
+
+    // 3. Log the deletion before we actually delete them
+    await createAuditLog({
+      userId: user._id,
+      action: 'ACCOUNT_DELETED',
+      email: user.email,
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+      metadata: { deletedAt: new Date() }
+    });
+
+    // 4. Delete the user
+    await User.findByIdAndDelete(req.user.id);
+
+    // Note: In an enterprise app, we would also cascade delete to Registrations, Feedback, etc.
+    // For this scope, deleting the auth user is sufficient for the "Danger Zone" demo.
+
+    res.status(200).json({
+      success: true,
+      message: 'Account permanently deleted. We are sorry to see you go!',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete account: ' + error.message,
     });
   }
 };

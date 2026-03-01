@@ -43,9 +43,9 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, [token]);
 
-  const login = async (email, password) => {
+  const login = async (email, password, rememberMe = true) => {
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
+      const response = await axios.post('/api/auth/login', { email, password, rememberMe });
       if (response.data.confirmationRequired) {
         return response.data;
       }
@@ -176,6 +176,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const deleteAccount = async (password) => {
+    try {
+      const response = await axios.delete('/api/auth/delete-account', {
+        data: { password }
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -196,6 +207,7 @@ export const AuthProvider = ({ children }) => {
     resetPassword,
     updateProfile,
     changePassword,
+    deleteAccount,
     logout,
     isAuthenticated: !!token,
     isAdmin: user?.role === 'admin',

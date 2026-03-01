@@ -4,9 +4,10 @@ const crypto = require('crypto');
 /**
  * Generate JWT Token
  */
-exports.generateToken = (id, role, twoFactorPending = false) => {
+exports.generateToken = (id, role, twoFactorPending = false, rememberMe = true) => {
+  const expiresIn = rememberMe ? '30d' : '1d';
   return jwt.sign({ id, role, twoFactorPending }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '7d',
+    expiresIn: expiresIn,
   });
 };
 

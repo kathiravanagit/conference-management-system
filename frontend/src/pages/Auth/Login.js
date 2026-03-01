@@ -12,6 +12,7 @@ const Login = () => {
   const [role, setRole] = useState('student');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
@@ -59,7 +60,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const result = await login(email, password);
+      const result = await login(email, password, rememberMe);
       if (result?.confirmationRequired) {
         setInfo(result.message || 'Please check your email to confirm login.');
         return;
@@ -200,7 +201,16 @@ const Login = () => {
                     <EyeIcon open={showPassword} />
                   </button>
                 </div>
-                <div className="auth-helper">
+                <div className="auth-helper" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', margin: 0, fontWeight: 'normal', fontSize: '0.9rem' }}>
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      style={{ width: 'auto', margin: 0 }}
+                    />
+                    Remember Me
+                  </label>
                   <Link to="/forgot-password">Forgot password?</Link>
                 </div>
               </div>

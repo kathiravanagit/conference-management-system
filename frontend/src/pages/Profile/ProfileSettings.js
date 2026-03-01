@@ -1,16 +1,22 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import './AccountSettings.css';
 
 const ProfileSettings = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, deleteAccount, logout } = useAuth();
+  const navigate = useNavigate();
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Danger Zone state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const twoFactorStatus = useMemo(
     () => (user?.twoFactorEnabled ? 'Enabled' : 'Disabled'),
@@ -30,6 +36,27 @@ const ProfileSettings = () => {
       setError(err.response?.data?.message || 'Failed to update profile.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async (event) => {
+    event.preventDefault();
+    if (!deletePassword) {
+      setError('Please enter your password to confirm deletion.');
+      return;
+    }
+
+    if (window.confirm('Are you absolutely sure? This action CANNOT be undone, and your data will be permanently wiped.')) {
+      setDeleteLoading(true);
+      setError('');
+      try {
+        await deleteAccount(deletePassword);
+        logout();
+        navigate('/register', { state: { message: 'Your account has been completely wiped from our servers.' } });
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to delete account.');
+        setDeleteLoading(false);
+      }
     }
   };
 
@@ -90,6 +117,46 @@ const ProfileSettings = () => {
           <Link to="/2fa-setup" className="btn btn-outline account-link-btn">
             Manage Two-Factor Authentication
           </Link>
+        </section>
+
+        <section className="account-section danger-zone" style={{ border: '1px solid #ff4d4f', padding: '1.5rem', borderRadius: '10px', marginTop: '2rem' }}>
+          <h2 style={{ color: '#ff4d4f', marginTop: 0 }}>Danger Zone</h2>
+          <p style={{ color: '#ccc', marginBottom: '1.5rem' }}>
+            Permanently delete your account and all associated personal data from this system. <strong>This action cannot be undone.</strong>
+          </p>
+
+          {!showDeleteConfirm ? (
+            <button
+              type="button"
+              className="btn"
+              style={{ backgroundColor: 'transparent', color: '#ff4d4f', border: '1px solid #ff4d4f' }}
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              Delete Account
+            </button>
+          ) : (
+            <form onSubmit={handleDeleteAccount} className="account-form" style={{ marginTop: '1rem' }}>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label htmlFor="deletePassword" style={{ color: '#ff4d4f' }}>Confirm Password</label>
+                <input
+                  id="deletePassword"
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="Enter your password to verify"
+                  required
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button type="submit" className="btn" style={{ backgroundColor: '#ff4d4f', color: '#fff' }} disabled={deleteLoading}>
+                  {deleteLoading ? 'Wiping Data...' : 'Permanently Delete'}
+                </button>
+                <button type="button" className="btn btn-outline" onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); }}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
         </section>
       </div>
     </div>
