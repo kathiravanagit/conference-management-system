@@ -160,7 +160,12 @@ const ConferenceDetail = () => {
               {conference.meetingLink && (
                 <div className="meeting-section">
                   <h3>Join Meeting</h3>
-                  <a href={conference.meetingLink} target="_blank" rel="noopener noreferrer" className="btn-join">
+                  <a
+                    href={conference.meetingLink.startsWith('http') ? conference.meetingLink : `https://${conference.meetingLink}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-join"
+                  >
                     Join Now
                   </a>
                 </div>

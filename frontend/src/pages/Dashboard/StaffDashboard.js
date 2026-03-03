@@ -319,13 +319,14 @@ const StaffDashboard = () => {
                           {conf.meetingLink && (
                             <a
                               className="action-btn action-join"
-                              href={conf.meetingLink}
+                              href={conf.meetingLink.startsWith('http') ? conf.meetingLink : `https://${conf.meetingLink}`}
                               target="_blank"
                               rel="noopener noreferrer"
                             >
                               Join
                             </a>
                           )}
+                          <Link to={`/conference/${conf._id}`} className="action-btn action-view">View</Link>
                           <button
                             className="action-btn action-view"
                             onClick={() => handleExportCsv(conf._id, conf.title)}
@@ -369,12 +370,15 @@ const StaffDashboard = () => {
                     </div>
                     <div className="action-btns">
                       {isCreator(conf) ? (
-                        <button
-                          className="action-btn action-delete"
-                          onClick={() => handleDeleteConference(conf._id)}
-                        >
-                          Delete
-                        </button>
+                        <>
+                          <Link to={`/conference/${conf._id}`} className="action-btn action-view">View</Link>
+                          <button
+                            className="action-btn action-delete"
+                            onClick={() => handleDeleteConference(conf._id)}
+                          >
+                            Delete
+                          </button>
+                        </>
                       ) : (
                         <Link to={`/conference/${conf._id}`} className="action-btn action-view">View</Link>
                       )}
@@ -451,7 +455,7 @@ const StaffDashboard = () => {
               {dashboard.ongoingConference.meetingLink && (
                 <a
                   className="btn btn-primary"
-                  href={dashboard.ongoingConference.meetingLink}
+                  href={dashboard.ongoingConference.meetingLink.startsWith('http') ? dashboard.ongoingConference.meetingLink : `https://${dashboard.ongoingConference.meetingLink}`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

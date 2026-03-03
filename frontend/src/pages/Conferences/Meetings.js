@@ -53,6 +53,7 @@ const Meetings = () => {
   }, [conferences, canManageEvents, user]);
 
   const ongoingConferences = useMemo(() => visibleConferences.filter((conference) => conference.status === 'ongoing'), [visibleConferences]);
+  const upcomingConferences = useMemo(() => visibleConferences.filter((conference) => conference.status === 'upcoming'), [visibleConferences]);
 
   // Early return for loading
   if (loading) {
@@ -96,7 +97,7 @@ const Meetings = () => {
                   <p>{conference.department} Department</p>
                   <p>{formatDate(conference.date)}</p>
                   <a
-                    href={conference.meetingLink}
+                    href={conference.meetingLink.startsWith('http') ? conference.meetingLink : `https://${conference.meetingLink}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-primary"
@@ -111,11 +112,11 @@ const Meetings = () => {
 
         <section className="meetings-section">
           <h2>Upcoming Meetings</h2>
-          {visibleConferences.length === 0 ? (
-            <p className="empty-note">No meetings available.</p>
+          {upcomingConferences.length === 0 ? (
+            <p className="empty-note">No upcoming meetings available.</p>
           ) : (
             <div className="meetings-grid">
-              {visibleConferences.map((conference) => {
+              {upcomingConferences.map((conference) => {
                 // Staff who created the conference should only see 'Join Live Meeting'
                 const isCreator = user && conference.createdBy && user._id === conference.createdBy;
                 const canJoin = canManageEvents || registeredIds.includes(conference._id) || isCreator;
@@ -132,7 +133,7 @@ const Meetings = () => {
                     <p>{formatDate(conference.date)}</p>
                     {conference.meetingLink ? (
                       <a
-                        href={conference.meetingLink}
+                        href={conference.meetingLink.startsWith('http') ? conference.meetingLink : `https://${conference.meetingLink}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={`btn ${canJoin ? 'btn-primary' : 'btn-outline'}`}
