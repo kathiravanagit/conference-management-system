@@ -1,5 +1,5 @@
-
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   certificateAPI,
   qaAPI,
@@ -183,9 +183,9 @@ const StaffDashboard = () => {
       const payload = {
         title: conferenceForm.title,
         description: conferenceForm.description,
-        date: conferenceForm.date,
-        endDate: conferenceForm.endDate,
-        registrationDeadline: conferenceForm.registrationDeadline || undefined,
+        date: new Date(conferenceForm.date).toISOString(),
+        endDate: new Date(conferenceForm.endDate).toISOString(),
+        registrationDeadline: conferenceForm.registrationDeadline ? new Date(conferenceForm.registrationDeadline).toISOString() : undefined,
         department: conferenceForm.department,
         maxAttendees: conferenceForm.maxAttendees,
         meetingLink: conferenceForm.meetingLink || undefined,
@@ -340,7 +340,7 @@ const StaffDashboard = () => {
                           </button>
                         </>
                       ) : (
-                        <a href={`/conference/${conf._id}`} className="action-btn action-view">View</a>
+                        <Link to={`/conference/${conf._id}`} className="action-btn action-view">View</Link>
                       )}
                     </div>
                   </div>
@@ -376,7 +376,7 @@ const StaffDashboard = () => {
                           Delete
                         </button>
                       ) : (
-                        <a href={`/conference/${conf._id}`} className="action-btn action-view">View</a>
+                        <Link to={`/conference/${conf._id}`} className="action-btn action-view">View</Link>
                       )}
                     </div>
                   </div>

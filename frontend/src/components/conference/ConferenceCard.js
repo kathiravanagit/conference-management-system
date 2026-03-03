@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { FaCalendarAlt, FaUser, FaMapMarkerAlt, FaClock } from 'react-icons/fa';
 import { formatDate, formatTime, truncateText } from '../../utils/helpers';
 import './ConferenceCard.css';
@@ -95,9 +96,9 @@ const ConferenceCard = ({ conference, onRegister, isRegistered, isCreator }) => 
               </button>
             )
           )}
-          <a href={`/conference/${conference._id}`} className="btn-view-details">
+          <Link to={`/conference/${conference._id}`} className="btn-view-details">
             View Details
-          </a>
+          </Link>
         </div>
       </div>
     </div>
