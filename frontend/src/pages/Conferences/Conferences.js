@@ -90,11 +90,10 @@ const Conferences = () => {
   let visibleConferences = mergedConferences;
   if (user) {
     if (user.role === 'student') {
+      // Students only see conferences for their department or for ALL departments
       visibleConferences = visibleConferences.filter(c => c.department === user.department || c.department === 'ALL');
-    } else if (user.role === 'staff') {
-      visibleConferences = visibleConferences.filter(c => isCreator(c));
     }
-    // 'admin' (IT Admin) sees all, so no filter needed
+    // staff and admin can see ALL conferences (isCreator only controls action buttons, not visibility)
   }
 
   const ongoingConferences = visibleConferences.filter((c) => c.status === 'ongoing');
