@@ -43,10 +43,10 @@ const StaffDashboard = () => {
     }
   };
 
-  const loadCompletedConferences = async (userId) => {
+  const loadCompletedConferences = async () => {
     try {
-      const res = await fetch(`/api/conferences/completed?createdBy=${userId}`);
-      const data = await res.json();
+      const res = await conferenceAPI.getCompleted();
+      const data = res.data;
       if (data.success) setCompletedConferences(data.completedConferences || []);
     } catch (err) {
       // silently ignore — not critical
@@ -59,7 +59,7 @@ const StaffDashboard = () => {
   }, []);
 
   useEffect(() => {
-    if (user?._id) loadCompletedConferences(user._id);
+    if (user?._id) loadCompletedConferences();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
