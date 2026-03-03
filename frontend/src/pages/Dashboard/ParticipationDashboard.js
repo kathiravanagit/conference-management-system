@@ -25,9 +25,9 @@ const ParticipationDashboard = () => {
     try {
       setLoading(true);
       const [regsResponse, certsResponse, profileResponse] = await Promise.all([
-        axios.get('/api/registrations/my'),
-        axios.get('/api/certificates/my'),
-        axios.get('/api/auth/me'),
+        axios.get('/registrations/my'),
+        axios.get('/certificates/my'),
+        axios.get('/auth/me'),
       ]);
 
       const registrations = regsResponse.data.registrations || [];
@@ -95,7 +95,7 @@ const ParticipationDashboard = () => {
     const f = feedbackForm[conferenceId];
     if (!f?.rating) return;
     try {
-      await axios.post('/api/feedback', {
+      await axios.post('/feedback', {
         conferenceId,
         rating: f.rating,
         comment: f.comment || '',
