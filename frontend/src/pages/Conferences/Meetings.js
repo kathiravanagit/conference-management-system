@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { conferenceAPI, registrationAPI } from '../../utils/api';
 import { formatDate, handleApiError } from '../../utils/helpers';
 import { useAuth } from '../../context/AuthContext';
@@ -96,14 +97,12 @@ const Meetings = () => {
                   <h3>{conference.title}</h3>
                   <p>{conference.department} Department</p>
                   <p>{formatDate(conference.date)}</p>
-                  <a
-                    href={conference.meetingLink.startsWith('http') ? conference.meetingLink : `https://${conference.meetingLink}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    to={`/conference/${conference._id}/meeting`}
                     className="btn btn-primary"
                   >
                     Join Live Meeting
-                  </a>
+                  </Link>
                 </article>
               ))}
             </div>
@@ -131,17 +130,15 @@ const Meetings = () => {
                     <h3>{conference.title}</h3>
                     <p>{conference.department} Department</p>
                     <p>{formatDate(conference.date)}</p>
-                    {conference.meetingLink ? (
-                      <a
-                        href={conference.meetingLink.startsWith('http') ? conference.meetingLink : `https://${conference.meetingLink}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    {['ongoing', 'upcoming'].includes(conference.status) ? (
+                      <Link
+                        to={`/conference/${conference._id}/meeting`}
                         className={`btn ${canJoin ? 'btn-primary' : 'btn-outline'}`}
                       >
                         {isCreator ? 'Join Live Meeting' : canJoin ? 'Open Meeting' : 'Register to Join'}
-                      </a>
+                      </Link>
                     ) : (
-                      <span className="link-pending">Meeting link will be added by staff.</span>
+                      <span className="link-pending">Meeting is over.</span>
                     )}
                   </article>
                 );

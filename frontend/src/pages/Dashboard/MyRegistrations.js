@@ -116,14 +116,12 @@ const MyRegistrations = () => {
                     Show QR Code
                   </Link>
 
-                  <a
-                    href={reg.conferenceId?.meetingLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    to={`/conference/${reg.conferenceId?._id}/meeting`}
                     className="btn-join"
                   >
-                    Join Meeting
-                  </a>
+                    Join Live Session
+                  </Link>
 
                   {!reg.attendanceStatus && reg.status === 'registered' && (
                     <button

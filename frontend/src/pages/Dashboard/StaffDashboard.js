@@ -316,15 +316,13 @@ const StaffDashboard = () => {
                     <div className="action-btns">
                       {isCreator(conf) ? (
                         <>
-                          {conf.meetingLink && (
-                            <a
+                          {['ongoing', 'upcoming'].includes(conf.status) && (
+                            <Link
                               className="action-btn action-join"
-                              href={conf.meetingLink.startsWith('http') ? conf.meetingLink : `https://${conf.meetingLink}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              to={`/conference/${conf._id}/meeting`}
                             >
                               Join
-                            </a>
+                            </Link>
                           )}
                           <Link to={`/conference/${conf._id}`} className="action-btn action-view">View</Link>
                           <button
@@ -452,16 +450,12 @@ const StaffDashboard = () => {
                 </p>
                 <p>{dashboard.ongoingConference.department} Department</p>
               </div>
-              {dashboard.ongoingConference.meetingLink && (
-                <a
-                  className="btn btn-primary"
-                  href={dashboard.ongoingConference.meetingLink.startsWith('http') ? dashboard.ongoingConference.meetingLink : `https://${dashboard.ongoingConference.meetingLink}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Join Meeting
-                </a>
-              )}
+              <Link
+                className="btn btn-primary"
+                to={`/conference/${dashboard.ongoingConference._id}/meeting`}
+              >
+                Join Live Session
+              </Link>
             </div>
           ) : (
             <p>No ongoing conference right now. Upcoming events are shown above.</p>

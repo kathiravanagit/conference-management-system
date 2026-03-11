@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { conferenceAPI, feedbackAPI, qaAPI } from '../../utils/api';
 import { formatDate, formatTime, formatDateTime, handleApiError } from '../../utils/helpers';
 import Loading from '../../components/ui/Loading';
@@ -157,17 +157,15 @@ const ConferenceDetail = () => {
                 </>
               )}
 
-              {conference.meetingLink && (
+              {['ongoing', 'upcoming'].includes(conference.status) && (
                 <div className="meeting-section">
                   <h3>Join Meeting</h3>
-                  <a
-                    href={conference.meetingLink.startsWith('http') ? conference.meetingLink : `https://${conference.meetingLink}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    to={`/conference/${conference._id}/meeting`}
                     className="btn-join"
                   >
-                    Join Now
-                  </a>
+                    Join Live Session
+                  </Link>
                 </div>
               )}
             </div>

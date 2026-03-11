@@ -13,6 +13,7 @@ import ResetPassword from './pages/Auth/ResetPassword';
 import ConfirmLogin from './pages/Auth/ConfirmLogin';
 import Conferences from './pages/Conferences/Conferences';
 import ConferenceDetail from './pages/Conferences/ConferenceDetail';
+import VideoMeeting from './pages/Conferences/VideoMeeting';
 import MyRegistrations from './pages/Dashboard/MyRegistrations';
 import ParticipationDashboard from './pages/Dashboard/ParticipationDashboard';
 import Leaderboard from './pages/Leaderboard/Leaderboard';
@@ -72,6 +73,14 @@ function AppContent() {
             <Route path="/conferences" element={<Conferences />} />
             <Route path="/meetings" element={<Meetings />} />
             <Route path="/conference/:id" element={<ConferenceDetail />} />
+            <Route
+              path="/conference/:id/meeting"
+              element={
+                <ProtectedRoute>
+                  <VideoMeeting />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/my-registrations"
               element={

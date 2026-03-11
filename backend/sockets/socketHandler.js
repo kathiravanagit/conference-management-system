@@ -122,6 +122,47 @@ const setupSocketIO = (io) => {
      */
     socket.on('disconnect', () => {
       console.log(`User disconnected: ${socket.id}`);
+      // Notify all rooms this socket was in
+      socket.broadcast.emit('user-disconnected', socket.id);
+    });
+
+    // ==========================================
+    // WebRTC Video Conferencing Signaling
+    // ==========================================
+
+    socket.on('join-video-room', (roomId, userId) => {
+      socket.join(roomId);
+      // Notify everyone else in the room that a new user connected
+      socket.to(roomId).emit('user-connected', { userId, socketId: socket.id });
+
+      // When this user disconnects, let the room know
+      socket.on('disconnect', () => {
+        socket.to(roomId).emit('user-disconnected', socket.id);
+      });
+    });
+
+    // Relay offers between peers
+    socket.on('video-offer', (data) => {
+      socket.to(data.target).emit('video-offer', {
+        caller: socket.id,
+        sdp: data.sdp,
+      });
+    });
+
+    // Relay answers between peers
+    socket.on('video-answer', (data) => {
+      socket.to(data.target).emit('video-answer', {
+        caller: socket.id,
+        sdp: data.sdp,
+      });
+    });
+
+    // Relay ICE candidates
+    socket.on('new-ice-candidate', (data) => {
+      socket.to(data.target).emit('new-ice-candidate', {
+        candidate: data.candidate,
+        caller: socket.id,
+      });
     });
   });
 };
