@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext';
-import { FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash, FaPhoneSlash } from 'react-icons/fa';
+import { FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash, FaPhoneSlash, FaExpand, FaCompress, FaDesktop, FaStopCircle } from 'react-icons/fa';
 import './VideoMeeting.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -19,6 +19,10 @@ const VideoMeeting = () => {
     const [isVideoOff, setIsVideoOff] = useState(false);
     const [peers, setPeers] = useState({});
     const [error, setError] = useState('');
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isScreenSharing, setIsScreenSharing] = useState(false);
+    const [screenStream, setScreenStream] = useState(null);
+    const [currentTime, setCurrentTime] = useState(new Date());
 
     const socketRef = useRef();
     const localVideoRef = useRef();
@@ -210,6 +214,84 @@ const VideoMeeting = () => {
         }
     };
 
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            containerRef.current.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+            setIsFullscreen(true);
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+                setIsFullscreen(false);
+            }
+        }
+    };
+
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, []);
+
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const toggleScreenShare = async () => {
+        if (!isScreenSharing) {
+            try {
+                const screen = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                setScreenStream(screen);
+                const screenTrack = screen.getVideoTracks()[0];
+
+                Object.values(peersRef.current).forEach((peerObj) => {
+                    const sender = peerObj.peer.getSenders().find(s => s.track.kind === 'video');
+                    if (sender) {
+                        sender.replaceTrack(screenTrack);
+                    }
+                });
+
+                if (localVideoRef.current) {
+                    localVideoRef.current.srcObject = screen;
+                }
+                setIsScreenSharing(true);
+
+                screenTrack.onended = () => {
+                    stopScreenSharing();
+                };
+            } catch (err) {
+                console.error("Error sharing screen", err);
+            }
+        } else {
+            stopScreenSharing();
+        }
+    };
+
+    const stopScreenSharing = () => {
+        if (screenStream) {
+            screenStream.getTracks().forEach(t => t.stop());
+            setScreenStream(null);
+        }
+        if (stream) {
+            const videoTrack = stream.getVideoTracks()[0];
+            Object.values(peersRef.current).forEach((peerObj) => {
+                const sender = peerObj.peer.getSenders().find(s => s.track.kind === 'video');
+                if (sender && videoTrack) {
+                    sender.replaceTrack(videoTrack);
+                }
+            });
+
+            if (localVideoRef.current) {
+                localVideoRef.current.srcObject = stream;
+            }
+        }
+        setIsScreenSharing(false);
+    };
+
     const leaveMeeting = () => {
         if (stream) {
             stream.getTracks().forEach((track) => track.stop());
@@ -234,15 +316,18 @@ const VideoMeeting = () => {
     const peersArray = Object.entries(peers);
 
     return (
-        <div className="video-meeting-page">
+        <div className="video-meeting-page" ref={containerRef}>
             <div className="video-meeting-header">
-                <h1>Live Session</h1>
+                <div className="video-meeting-header-left">
+                    <h1>Live Session</h1>
+                    <span className="live-clock">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
                 <div className="participants-count">
                     Participants: {1 + peersArray.length}
                 </div>
             </div>
 
-            <div className="video-grid" ref={containerRef}>
+            <div className="video-grid">
                 {/* Local Video */}
                 <div className="video-container local-video-container">
                     <video
@@ -281,8 +366,22 @@ const VideoMeeting = () => {
                 >
                     {isVideoOff ? <FaVideoSlash /> : <FaVideo />}
                 </button>
+                <button
+                    className={`control-btn ${isScreenSharing ? 'sharing' : ''}`}
+                    onClick={toggleScreenShare}
+                    title={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
+                >
+                    {isScreenSharing ? <FaStopCircle /> : <FaDesktop />}
+                </button>
+                <button
+                    className="control-btn"
+                    onClick={toggleFullscreen}
+                    title={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+                >
+                    {isFullscreen ? <FaCompress /> : <FaExpand />}
+                </button>
                 <button className="control-btn leave-btn" onClick={leaveMeeting} title="Leave Meeting">
-                    <FaPhoneSlash />
+                    <FaPhoneSlash /> <span>Leave</span>
                 </button>
             </div>
         </div>
