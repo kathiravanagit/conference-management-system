@@ -33,11 +33,6 @@ const conferenceSchema = new mongoose.Schema(
       bio: String,
       linkedin: String,
     },
-    meetingLink: {
-      type: String,
-      unique: true,
-      sparse: true,
-    },
     department: {
       type: String,
       enum: ['CSE', 'ECE', 'MECH', 'AIML', 'EEE', 'FT', 'IT', 'ALL'],
@@ -60,7 +55,7 @@ const conferenceSchema = new mongoose.Schema(
     },
     maxAttendees: {
       type: Number,
-      default: 500,
+      default: 50,
     },
     status: {
       type: String,

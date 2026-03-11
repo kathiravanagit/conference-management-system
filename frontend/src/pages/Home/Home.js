@@ -174,15 +174,13 @@ const Home = () => {
                   {heroConference.endDate && <> – {formatTime(heroConference.endDate)}</>}
                 </div>
               )}
-              {heroConference?.meetingLink && isAuthenticated ? (
-                <a
+              {heroConference && isAuthenticated && ['ongoing', 'upcoming'].includes(heroConference.status) ? (
+                <button
                   className="btn btn-soft hero-card-button"
-                  href={heroConference.meetingLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  onClick={() => navigate(`/conference/${heroConference._id}/meeting`)}
                 >
                   Join meeting dashboard
-                </a>
+                </button>
               ) : (
                 <button className="btn btn-soft hero-card-button" onClick={() => {
                   if (isAuthenticated) {

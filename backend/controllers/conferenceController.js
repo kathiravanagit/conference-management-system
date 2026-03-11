@@ -168,9 +168,6 @@ exports.createConference = async (req, res, next) => {
       });
     }
 
-    // meetingLink is optional — staff can set it later
-    const generatedMeetingLink = meetingLink?.trim() || undefined;
-
     // Derive status from actual datetime
     const now = new Date();
     let normalizedStatus = 'upcoming';
@@ -191,7 +188,6 @@ exports.createConference = async (req, res, next) => {
       speaker,
       department: department || 'ALL',
       maxAttendees: maxAttendees || 500,
-      meetingLink: generatedMeetingLink,
       schedule: schedule || [],
       createdBy: req.user.id,
       status: normalizedStatus,
@@ -345,41 +341,3 @@ exports.uploadPoster = async (req, res, next) => {
   }
 };
 
-/**
- * Create/update conference meeting link (Staff/Admin)
- * PUT /api/conferences/:id/meeting
- */
-exports.updateConferenceMeeting = async (req, res, next) => {
-  try {
-    const { meetingLink } = req.body;
-
-    const conference = await Conference.findById(req.params.id);
-    if (!conference) {
-      return res.status(404).json({
-        success: false,
-        message: 'Conference not found',
-      });
-    }
-
-    if (conference.createdBy.toString() !== req.user.id && !['admin', 'staff'].includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update meeting for this conference',
-      });
-    }
-
-    conference.meetingLink = meetingLink?.trim() || generateMeetingLink(conference._id, conference.title);
-    await conference.save();
-
-    return res.status(200).json({
-      success: true,
-      message: 'Meeting link updated successfully',
-      conference,
-    });
-  } catch (error) {
-    return res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};

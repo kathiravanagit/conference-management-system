@@ -8,7 +8,6 @@ const {
   updateConference,
   deleteConference,
   uploadPoster,
-  updateConferenceMeeting,
 } = require('../controllers/conferenceController');
 const { protect, authorize, require2FAComplete } = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -46,6 +45,5 @@ router.put(
   upload.single('poster'),
   uploadPoster
 );
-router.put('/:id/meeting', protect, require2FAComplete, authorize('admin', 'staff'), updateConferenceMeeting);
 
 module.exports = router;

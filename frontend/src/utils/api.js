@@ -10,7 +10,6 @@ export const conferenceAPI = {
   getById: (id) => axios.get(`${API_URL}/conferences/${id}`),
   create: (data) => axios.post(`${API_URL}/conferences`, data),
   update: (id, data) => axios.put(`${API_URL}/conferences/${id}`, data),
-  updateMeeting: (id, meetingLink) => axios.put(`${API_URL}/conferences/${id}/meeting`, { meetingLink }),
   delete: (id) => axios.delete(`${API_URL}/conferences/${id}`),
   uploadPoster: (id, file) => {
     const formData = new FormData();

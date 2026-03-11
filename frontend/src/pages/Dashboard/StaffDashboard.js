@@ -76,13 +76,10 @@ const StaffDashboard = () => {
     speakerLinkedIn: '',
     department: 'ALL',
     maxAttendees: 500,
-    meetingLink: '',
     enableCertificates: false,
     enableQA: true,
     agenda: '',          // comma-separated: "9:00 Opening, 10:00 Keynote"
   });
-  const [meetingConferenceId, setMeetingConferenceId] = useState('');
-  const [meetingLink, setMeetingLink] = useState('');
   const [uploadConferenceId, setUploadConferenceId] = useState('');
   const [conferenceRegistrations, setConferenceRegistrations] = useState([]);
   const [uploadUserId, setUploadUserId] = useState('');
@@ -188,7 +185,6 @@ const StaffDashboard = () => {
         registrationDeadline: conferenceForm.registrationDeadline ? new Date(conferenceForm.registrationDeadline).toISOString() : undefined,
         department: conferenceForm.department,
         maxAttendees: conferenceForm.maxAttendees,
-        meetingLink: conferenceForm.meetingLink || undefined,
         enableCertificates: conferenceForm.enableCertificates,
         enableQA: conferenceForm.enableQA,
         schedule: agendaItems,
@@ -216,30 +212,10 @@ const StaffDashboard = () => {
         speakerLinkedIn: '',
         department: 'ALL',
         maxAttendees: 500,
-        meetingLink: '',
         enableCertificates: false,
         enableQA: true,
         agenda: '',
       });
-      await loadDashboard();
-    } catch (err) {
-      setError(handleApiError(err));
-    }
-  };
-
-  const handleMeetingUpdate = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    if (!meetingConferenceId || !meetingLink) {
-      setError('Please select a conference and provide a meeting link.');
-      return;
-    }
-    try {
-      await conferenceAPI.updateMeeting(meetingConferenceId, meetingLink);
-      setSuccess('Meeting link updated successfully.');
-      setMeetingConferenceId('');
-      setMeetingLink('');
       await loadDashboard();
     } catch (err) {
       setError(handleApiError(err));
@@ -273,11 +249,6 @@ const StaffDashboard = () => {
       setError(handleApiError(err));
     }
   };
-
-  // Filter active (upcoming + ongoing) conferences for dropdowns
-  const activeConferences = conferences.filter(
-    (c) => c.status === 'upcoming' || c.status === 'ongoing'
-  );
 
   if (loading) {
     return <Loading message="Loading staff dashboard..." />;
@@ -589,14 +560,6 @@ const StaffDashboard = () => {
                   setConferenceForm((prev) => ({ ...prev, maxAttendees: event.target.value }))
                 }
               />
-              <input
-                type="url"
-                placeholder="Meeting link (optional — can set later)"
-                value={conferenceForm.meetingLink}
-                onChange={(event) =>
-                  setConferenceForm((prev) => ({ ...prev, meetingLink: event.target.value }))
-                }
-              />
 
               {/* Agenda / Schedule */}
               <div style={{ marginBottom: '0.5rem' }}>
@@ -642,30 +605,6 @@ const StaffDashboard = () => {
           </section>
 
           <section className="staff-card">
-            <h2>Update Meeting Link</h2>
-            <form className="staff-form" onSubmit={handleMeetingUpdate}>
-              <select
-                value={meetingConferenceId}
-                onChange={(event) => setMeetingConferenceId(event.target.value)}
-                required
-              >
-                <option value="">Select conference</option>
-                {activeConferences.map((conference) => (
-                  <option key={conference._id} value={conference._id}>
-                    {conference.title} ({conference.status})
-                  </option>
-                ))}
-              </select>
-              <input
-                type="url"
-                placeholder="Paste meeting link (Zoom, Meet, etc.)"
-                value={meetingLink}
-                onChange={(event) => setMeetingLink(event.target.value)}
-                required
-              />
-              <button type="submit" className="btn btn-primary">Save Meeting Link</button>
-            </form>
-
             <h2 className="staff-subtitle">Upload User Certificate</h2>
             <form className="staff-form" onSubmit={handleCertificateUpload}>
               <select
@@ -767,7 +706,7 @@ const StaffDashboard = () => {
           </section>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

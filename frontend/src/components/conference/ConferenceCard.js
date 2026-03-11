@@ -74,15 +74,13 @@ const ConferenceCard = ({ conference, onRegister, isRegistered, isCreator }) => 
         <div className="conference-actions">
           {isCreator ? (
             <>
-              {conference.status === 'ongoing' && conference.meetingLink && (
-                <a
-                  href={conference.meetingLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
+              {['ongoing', 'upcoming'].includes(conference.status) && (
+                <Link
+                  to={`/conference/${conference._id}/meeting`}
                   className="btn-register btn-join-meeting"
                 >
                   Join Meeting
-                </a>
+                </Link>
               )}
             </>
           ) : (
@@ -101,7 +99,7 @@ const ConferenceCard = ({ conference, onRegister, isRegistered, isCreator }) => 
           </Link>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

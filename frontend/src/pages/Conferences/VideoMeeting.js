@@ -56,16 +56,21 @@ const VideoMeeting = () => {
                 setError('Camera and microphone permissions are required to join the meeting.');
             });
 
+        const currentPeers = peersRef.current;
+        const currentSocket = socketRef.current;
+
         return () => {
             // Cleanup WebRTC connections and Socket
-            Object.values(peersRef.current).forEach((peerObj) => {
-                peerObj.peer.close();
-            });
+            if (currentPeers) {
+                Object.values(currentPeers).forEach((peerObj) => {
+                    peerObj.peer.close();
+                });
+            }
             if (stream) {
                 stream.getTracks().forEach((track) => track.stop());
             }
-            if (socketRef.current) {
-                socketRef.current.disconnect();
+            if (currentSocket) {
+                currentSocket.disconnect();
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
