@@ -25,6 +25,7 @@ const VideoMeeting = () => {
     const [screenStream, setScreenStream] = useState(null);
     const [currentTime, setCurrentTime] = useState(new Date());
     const [isHost, setIsHost] = useState(false);
+    const [peersInfo, setPeersInfo] = useState({});
 
     const socketRef = useRef();
     const localVideoRef = useRef();
@@ -37,43 +38,42 @@ const VideoMeeting = () => {
             return;
         }
 
-        // Check if user is the meeting host
-        const checkHost = async () => {
+        // Connect to WebSocket and initialize meeting
+        const initMeeting = async () => {
+            let isHostVal = false;
+            // Check if user is the meeting host
             try {
                 const res = await conferenceAPI.getById(conferenceId);
                 const confCreator = res.data.conference?.createdBy;
                 const creatorId = typeof confCreator === 'object' ? confCreator._id : confCreator;
-                setIsHost(creatorId === user?._id);
+                isHostVal = (creatorId === user?._id);
+                setIsHost(isHostVal);
             } catch (err) {
                 console.error("Failed to fetch conference details for host check", err);
             }
-        };
-        checkHost();
 
-        // Connect to WebSocket
-        socketRef.current = io(SOCKET_URL, {
-            transports: ['websocket'],
-        });
+            socketRef.current = io(SOCKET_URL, { transports: ['websocket'] });
 
-        // Request webcam/microphone permissions
-        navigator.mediaDevices
-            .getUserMedia({ video: true, audio: true })
-            .then((currentStream) => {
+            // Request webcam/microphone permissions
+            try {
+                const currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 setStream(currentStream);
                 if (localVideoRef.current) {
                     localVideoRef.current.srcObject = currentStream;
                 }
 
                 // Setup socket listeners for WebRTC
-                setupSocketListeners(currentStream);
+                setupSocketListeners(currentStream, isHostVal);
 
                 // Join the room
                 socketRef.current.emit('join-video-room', conferenceId, user._id);
-            })
-            .catch((err) => {
+            } catch (err) {
                 console.error('Failed to get local stream', err);
                 setError('Camera and microphone permissions are required to join the meeting.');
-            });
+            }
+        };
+
+        initMeeting();
 
         const currentPeers = peersRef.current;
         const currentSocket = socketRef.current;
@@ -95,7 +95,7 @@ const VideoMeeting = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [conferenceId]);
 
-    const setupSocketListeners = (localStream) => {
+    const setupSocketListeners = (localStream, isHostVal) => {
         // Other user joined -> We, as an existing user, create an Offer
         socketRef.current.on('user-connected', async ({ userId, socketId }) => {
             console.log('User connected, creating offer for:', socketId);
@@ -108,6 +108,7 @@ const VideoMeeting = () => {
                 socketRef.current.emit('video-offer', {
                     target: socketId,
                     sdp: offer,
+                    userInfo: { userName: user.name, isHost: isHostVal }
                 });
             } catch (err) {
                 console.error('Error creating offer', err);
@@ -115,8 +116,11 @@ const VideoMeeting = () => {
         });
 
         // Receive Offer -> Create Answer
-        socketRef.current.on('video-offer', async ({ caller, sdp }) => {
+        socketRef.current.on('video-offer', async ({ caller, sdp, userInfo }) => {
             console.log('Received video offer from:', caller);
+            if (userInfo) {
+                setPeersInfo(prev => ({ ...prev, [caller]: userInfo }));
+            }
             const peer = createPeerConnection(caller, localStream);
             peersRef.current[caller] = { peer, socketId: caller };
 
@@ -127,6 +131,7 @@ const VideoMeeting = () => {
                 socketRef.current.emit('video-answer', {
                     target: caller,
                     sdp: answer,
+                    userInfo: { userName: user.name, isHost: isHostVal }
                 });
             } catch (err) {
                 console.error('Error handling offer', err);
@@ -134,8 +139,11 @@ const VideoMeeting = () => {
         });
 
         // Receive Answer
-        socketRef.current.on('video-answer', async ({ caller, sdp }) => {
+        socketRef.current.on('video-answer', async ({ caller, sdp, userInfo }) => {
             console.log('Received video answer from:', caller);
+            if (userInfo) {
+                setPeersInfo(prev => ({ ...prev, [caller]: userInfo }));
+            }
             const peerObj = peersRef.current[caller];
             if (peerObj) {
                 try {
@@ -169,6 +177,11 @@ const VideoMeeting = () => {
                     const newPeers = { ...prevPeers };
                     delete newPeers[socketId];
                     return newPeers;
+                });
+                setPeersInfo((prev) => {
+                    const next = { ...prev };
+                    delete next[socketId];
+                    return next;
                 });
             }
         });
@@ -377,12 +390,17 @@ const VideoMeeting = () => {
                             <FaVideoSlash size={40} />
                         </div>
                     )}
-                    <span className="video-label">You {isMuted && '(Muted)'}</span>
+                    <span className="video-label">You {isHost ? '(Host)' : ''} {isMuted && '(Muted)'}</span>
                 </div>
 
                 {/* Remote Videos */}
                 {peersArray.map(([socketId, peerStream]) => (
-                    <VideoPlayer key={socketId} stream={peerStream} label={`Participant`} />
+                    <VideoPlayer
+                        key={socketId}
+                        stream={peerStream}
+                        label={peersInfo[socketId]?.userName || 'Participant'}
+                        isHost={peersInfo[socketId]?.isHost}
+                    />
                 ))}
             </div>
 
@@ -447,7 +465,7 @@ const VideoMeeting = () => {
 };
 
 // Sub-component for remote video streams
-const VideoPlayer = ({ stream, label }) => {
+const VideoPlayer = ({ stream, label, isHost }) => {
     const ref = useRef();
 
     useEffect(() => {
@@ -459,7 +477,9 @@ const VideoPlayer = ({ stream, label }) => {
     return (
         <div className="video-container">
             <video playsInline autoPlay ref={ref} className="video-stream" />
-            <span className="video-label">{label}</span>
+            <span className="video-label">
+                {label} {isHost && <span className="host-badge">(Host)</span>}
+            </span>
         </div>
     );
 };

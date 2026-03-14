@@ -146,6 +146,7 @@ const setupSocketIO = (io) => {
       socket.to(data.target).emit('video-offer', {
         caller: socket.id,
         sdp: data.sdp,
+        userInfo: data.userInfo,
       });
     });
 
@@ -154,6 +155,7 @@ const setupSocketIO = (io) => {
       socket.to(data.target).emit('video-answer', {
         caller: socket.id,
         sdp: data.sdp,
+        userInfo: data.userInfo,
       });
     });
 
