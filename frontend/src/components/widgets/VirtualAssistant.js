@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import './VirtualAssistant.css';
 
@@ -42,6 +43,7 @@ const BotAvatar = () => (
 );
 
 const VirtualAssistant = () => {
+    const location = useLocation();
     const [open, setOpen] = useState(false);
     const [messages, setMessages] = useState([
         {
@@ -143,6 +145,10 @@ const VirtualAssistant = () => {
         text.split(/\*\*(.+?)\*\*/g).map((part, i) =>
             i % 2 === 1 ? <strong key={i}>{part}</strong> : <span key={i}>{part}</span>
         );
+
+    if (location.pathname.includes('/meeting')) {
+        return null;
+    }
 
     return (
         <>

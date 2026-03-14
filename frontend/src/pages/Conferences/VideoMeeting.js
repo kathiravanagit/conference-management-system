@@ -2,7 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext';
-import { FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash, FaPhoneSlash, FaExpand, FaCompress, FaDesktop, FaStopCircle } from 'react-icons/fa';
+import { conferenceAPI } from '../../utils/api';
+import { FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash, FaPhoneSlash, FaExpand, FaCompress, FaDesktop, FaStopCircle, FaUsers, FaPowerOff } from 'react-icons/fa';
 import './VideoMeeting.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -23,6 +24,7 @@ const VideoMeeting = () => {
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [screenStream, setScreenStream] = useState(null);
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [isHost, setIsHost] = useState(false);
 
     const socketRef = useRef();
     const localVideoRef = useRef();
@@ -34,6 +36,19 @@ const VideoMeeting = () => {
             navigate('/login');
             return;
         }
+
+        // Check if user is the meeting host
+        const checkHost = async () => {
+            try {
+                const res = await conferenceAPI.getById(conferenceId);
+                const confCreator = res.data.conference?.createdBy;
+                const creatorId = typeof confCreator === 'object' ? confCreator._id : confCreator;
+                setIsHost(creatorId === user?._id);
+            } catch (err) {
+                console.error("Failed to fetch conference details for host check", err);
+            }
+        };
+        checkHost();
 
         // Connect to WebSocket
         socketRef.current = io(SOCKET_URL, {
@@ -156,6 +171,26 @@ const VideoMeeting = () => {
                     return newPeers;
                 });
             }
+        });
+
+        // Host triggered actions
+        socketRef.current.on('trigger-mute-all', () => {
+            if (localStream) {
+                const audioTrack = localStream.getAudioTracks()[0];
+                if (audioTrack && audioTrack.enabled) {
+                    audioTrack.enabled = false;
+                    setIsMuted(true);
+                    // Note: To show a notification to the user, you'd add a toast here
+                }
+            }
+        });
+
+        socketRef.current.on('meeting-ended-by-host', () => {
+            alert('The host has ended this meeting across all participants.');
+            if (localStream) {
+                localStream.getTracks().forEach((track) => track.stop());
+            }
+            navigate(`/conference/${conferenceId}`);
         });
     };
 
@@ -380,9 +415,32 @@ const VideoMeeting = () => {
                 >
                     {isFullscreen ? <FaCompress /> : <FaExpand />}
                 </button>
+
+                {isHost && (
+                    <>
+                        <button
+                            className="control-btn host-action-btn"
+                            onClick={() => socketRef.current.emit('mute-all-participants', conferenceId)}
+                            title="Mute All Participants"
+                        >
+                            <FaUsers />
+                        </button>
+                    </>
+                )}
+
                 <button className="control-btn leave-btn" onClick={leaveMeeting} title="Leave Meeting">
                     <FaPhoneSlash /> <span>Leave</span>
                 </button>
+
+                {isHost && (
+                    <button
+                        className="control-btn leave-btn end-all-btn"
+                        onClick={() => socketRef.current.emit('end-meeting-for-all', conferenceId)}
+                        title="End Meeting for All"
+                    >
+                        <FaPowerOff /> <span>End for All</span>
+                    </button>
+                )}
             </div>
         </div>
     );

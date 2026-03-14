@@ -181,6 +181,23 @@
   background-color: #c5221f;
 }
 
+.control-btn.host-action-btn {
+  background-color: #fbbc04;
+  color: #111;
+}
+
+.control-btn.host-action-btn:hover {
+  background-color: #f2a900;
+}
+
+.control-btn.end-all-btn {
+  background-color: #b31412;
+}
+
+.control-btn.end-all-btn:hover {
+  background-color: #8a0f0d;
+}
+
 /* Error State */
 .video-meeting-error {
   display: flex;

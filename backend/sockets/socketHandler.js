@@ -13,12 +13,12 @@ const setupSocketIO = (io) => {
     socket.on('joinConference', (data) => {
       const { conferenceId, userId, userName } = data;
       const room = `conference-${conferenceId}`;
-      
+
       socket.join(room);
       socket.emit('roomJoined', {
         message: `Joined conference: ${conferenceId}`,
       });
-      
+
       // Notify others
       io.to(room).emit('userJoined', {
         message: `${userName} joined the conference`,
@@ -95,7 +95,7 @@ const setupSocketIO = (io) => {
 
     socket.on('notification', (data) => {
       const { userId, type, message } = data;
-      
+
       io.to(`user-${userId}`).emit('notification', {
         type,
         message,
@@ -163,6 +163,15 @@ const setupSocketIO = (io) => {
         candidate: data.candidate,
         caller: socket.id,
       });
+    });
+
+    // Host actions
+    socket.on('mute-all-participants', (roomId) => {
+      socket.to(roomId).emit('trigger-mute-all');
+    });
+
+    socket.on('end-meeting-for-all', (roomId) => {
+      socket.to(roomId).emit('meeting-ended-by-host');
     });
   });
 };
