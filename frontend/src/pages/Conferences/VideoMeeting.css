@@ -118,6 +118,17 @@
   margin-left: 0.5rem;
 }
 
+.media-status-icons {
+  display: flex;
+  margin-left: 0.5rem;
+  gap: 0.25rem;
+  color: #ff4c4c;
+}
+
+.status-icon {
+  font-size: 0.9rem;
+}
+
 .video-controls {
   display: flex;
   justify-content: center;

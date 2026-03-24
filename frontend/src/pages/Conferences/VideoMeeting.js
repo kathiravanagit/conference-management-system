@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext';
 import { conferenceAPI } from '../../utils/api';
-import { FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash, FaPhoneSlash, FaExpand, FaCompress, FaDesktop, FaStopCircle, FaUsers, FaPowerOff } from 'react-icons/fa';
+import { FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash, FaPhoneSlash, FaExpand, FaCompress, FaDesktop, FaStopCircle, FaUsers, FaPowerOff, FaUser } from 'react-icons/fa';
 import './VideoMeeting.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -84,6 +84,7 @@ const VideoMeeting = () => {
                 Object.values(currentPeers).forEach((peerObj) => {
                     peerObj.peer.close();
                 });
+                peersRef.current = {};
             }
             if (stream) {
                 stream.getTracks().forEach((track) => track.stop());
@@ -91,6 +92,8 @@ const VideoMeeting = () => {
             if (currentSocket) {
                 currentSocket.disconnect();
             }
+            setPeers({});
+            setPeersInfo({});
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [conferenceId]);
@@ -186,6 +189,20 @@ const VideoMeeting = () => {
             }
         });
 
+        socketRef.current.on('user-media-status', ({ socketId, type, isMuted, isVideoOff }) => {
+            setPeersInfo(prev => {
+                const info = prev[socketId] || {};
+                return {
+                    ...prev,
+                    [socketId]: {
+                        ...info,
+                        isMuted: type === 'audio' ? isMuted : info.isMuted,
+                        isVideoOff: type === 'video' ? isVideoOff : info.isVideoOff
+                    }
+                };
+            });
+        });
+
         // Host triggered actions
         socketRef.current.on('trigger-mute-all', () => {
             if (localStream) {
@@ -247,7 +264,9 @@ const VideoMeeting = () => {
             const audioTrack = stream.getAudioTracks()[0];
             if (audioTrack) {
                 audioTrack.enabled = !audioTrack.enabled;
-                setIsMuted(!audioTrack.enabled);
+                const newMuted = !audioTrack.enabled;
+                setIsMuted(newMuted);
+                socketRef.current.emit('user-media-status', { roomId: conferenceId, type: 'audio', isMuted: newMuted });
             }
         }
     };
@@ -257,7 +276,9 @@ const VideoMeeting = () => {
             const videoTrack = stream.getVideoTracks()[0];
             if (videoTrack) {
                 videoTrack.enabled = !videoTrack.enabled;
-                setIsVideoOff(!videoTrack.enabled);
+                const newVideoOff = !videoTrack.enabled;
+                setIsVideoOff(newVideoOff);
+                socketRef.current.emit('user-media-status', { roomId: conferenceId, type: 'video', isVideoOff: newVideoOff });
             }
         }
     };
@@ -400,6 +421,8 @@ const VideoMeeting = () => {
                         stream={peerStream}
                         label={peersInfo[socketId]?.userName || 'Participant'}
                         isHost={peersInfo[socketId]?.isHost}
+                        isMuted={peersInfo[socketId]?.isMuted}
+                        isVideoOff={peersInfo[socketId]?.isVideoOff}
                     />
                 ))}
             </div>
@@ -465,7 +488,7 @@ const VideoMeeting = () => {
 };
 
 // Sub-component for remote video streams
-const VideoPlayer = ({ stream, label, isHost }) => {
+const VideoPlayer = ({ stream, label, isHost, isMuted, isVideoOff }) => {
     const ref = useRef();
 
     useEffect(() => {
@@ -476,9 +499,17 @@ const VideoPlayer = ({ stream, label, isHost }) => {
 
     return (
         <div className="video-container">
-            <video playsInline autoPlay ref={ref} className="video-stream" />
+            <video playsInline autoPlay ref={ref} className={`video-stream ${isVideoOff ? 'hidden' : ''}`} />
+            {isVideoOff && (
+                <div className="video-off-placeholder">
+                    <FaUser size={40} />
+                </div>
+            )}
             <span className="video-label">
-                {label} {isHost && <span className="host-badge">(Host)</span>}
+                {label} {isHost && <span className="host-badge">Host</span>}
+                <span className="media-status-icons">
+                    {isMuted && <FaMicrophoneSlash className="status-icon" title="Muted" />}
+                </span>
             </span>
         </div>
     );

@@ -167,6 +167,16 @@ const setupSocketIO = (io) => {
       });
     });
 
+    // Relay media status (mute/video disabled)
+    socket.on('user-media-status', (data) => {
+      socket.to(data.roomId).emit('user-media-status', {
+        socketId: socket.id,
+        type: data.type,
+        isMuted: data.isMuted,
+        isVideoOff: data.isVideoOff
+      });
+    });
+
     // Host actions
     socket.on('mute-all-participants', (roomId) => {
       socket.to(roomId).emit('trigger-mute-all');
