@@ -5,6 +5,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './components/ui/Toast';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
+import './App.css';
 
 const Home = lazy(() => import('./pages/Home/Home'));
 const Login = lazy(() => import('./pages/Auth/Login'));
@@ -28,7 +29,6 @@ const StaffDashboard = lazy(() => import('./pages/Dashboard/StaffDashboard'));
 const AdminUsers = lazy(() => import('./pages/Admin/AdminUsers'));
 const Meetings = lazy(() => import('./pages/Conferences/Meetings'));
 const VirtualAssistant = lazy(() => import('./components/widgets/VirtualAssistant'));
-import './App.css';
 
 const RouteFallback = () => <div className="loading">Loading...</div>;
 
