@@ -1,4 +1,5 @@
 const ChatFAQ = require('../models/ChatFAQ');
+const axios = require('axios');
 
 // ─── Stop-words to ignore during keyword extraction ───────────────────────────
 const STOP_WORDS = new Set([
@@ -29,6 +30,67 @@ function scoreMatch(faq, queryKeywords) {
     const faqWords = new Set(faq.keywords);
     const matches = queryKeywords.filter((k) => faqWords.has(k)).length;
     return matches / queryKeywords.length;
+}
+
+async function askWebsiteLLM(question, contextFaqs = []) {
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) return null;
+
+    const model = process.env.OPENROUTER_MODEL || 'openrouter/auto';
+    const siteContext = [
+        'This product is ConferenceHub, a conference management system for students, staff, and admins.',
+        'Main website capabilities: conference discovery, registration, live meetings, attendance via QR, certificates, leaderboard, account settings, and 2FA.',
+        'Students can register, join meetings, view participation, and download certificates when eligible.',
+        'Staff can create conferences, manage attendance, scan QR, upload certificates, and moderate meeting actions.',
+        'For unknown or policy-sensitive actions, guide users to dashboard flows and contact staff/admin support.',
+    ].join('\n');
+
+    const faqContext = contextFaqs.length
+        ? contextFaqs
+            .slice(0, 5)
+            .map((item, idx) => `${idx + 1}. Q: ${item.faq.question}\nA: ${item.faq.answer}`)
+            .join('\n\n')
+        : 'No FAQ matches found.';
+
+    const systemPrompt = [
+        'You are KatBot, a helpful assistant for ConferenceHub.',
+        'Answer only about this website and its workflows.',
+        'If user asks unrelated topics, politely say you can help with ConferenceHub website usage only.',
+        'Give concise, practical steps and avoid making up unavailable features.',
+    ].join(' ');
+
+    try {
+        const response = await axios.post(
+            'https://openrouter.ai/api/v1/chat/completions',
+            {
+                model,
+                temperature: 0.2,
+                max_tokens: 320,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    {
+                        role: 'user',
+                        content: `Website context:\n${siteContext}\n\nRelevant FAQ context:\n${faqContext}\n\nUser question:\n${question}`,
+                    },
+                ],
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': process.env.CLIENT_URL || 'http://localhost:3000',
+                    'X-Title': 'ConferenceHub KatBot',
+                },
+                timeout: 15000,
+            }
+        );
+
+        const llmAnswer = response?.data?.choices?.[0]?.message?.content?.trim();
+        return llmAnswer || null;
+    } catch (error) {
+        console.error('Assistant LLM request failed:', error?.response?.data?.error?.message || error.message);
+        return null;
+    }
 }
 
 // ─── Pre-seeded FAQ knowledge base ────────────────────────────────────────────
@@ -244,6 +306,22 @@ exports.ask = async (req, res) => {
             .map((faq) => ({ faq, score: scoreMatch(faq, queryKeywords) }))
             .filter((s) => s.score > 0)
             .sort((a, b) => b.score - a.score);
+
+        const llmAnswer = await askWebsiteLLM(question, scored);
+        if (llmAnswer) {
+            if (scored[0]?.faq?._id) {
+                await ChatFAQ.findByIdAndUpdate(scored[0].faq._id, { $inc: { hitCount: 1 } });
+            }
+
+            return res.json({
+                success: true,
+                matched: scored.length > 0,
+                answer: llmAnswer,
+                category: scored[0]?.faq?.category || 'general',
+                score: scored[0]?.score || 0,
+                source: 'llm',
+            });
+        }
 
         if (scored.length === 0) {
             return res.json({

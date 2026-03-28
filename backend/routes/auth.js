@@ -21,17 +21,27 @@ const {
   deleteAccount,
 } = require('../controllers/authController');
 const { protect, require2FAComplete } = require('../middleware/auth');
+const {
+  authLoginLimiter,
+  authRegisterLimiter,
+  authForgotPasswordLimiter,
+} = require('../middleware/rateLimit');
+const {
+  validateRegisterPayload,
+  validateLoginPayload,
+  validateForgotPasswordPayload,
+} = require('../middleware/validation');
 
 /**
  * Authentication Routes
  */
 
 // Public routes
-router.post('/register', register);
-router.post('/login', login);
+router.post('/register', authRegisterLimiter, validateRegisterPayload, register);
+router.post('/login', authLoginLimiter, validateLoginPayload, login);
 router.post('/google', googleLogin);
 router.get('/confirm-login', confirmLogin);
-router.post('/forgot-password', forgotPassword);
+router.post('/forgot-password', authForgotPasswordLimiter, validateForgotPasswordPayload, forgotPassword);
 router.post('/reset-password', resetPassword);
 router.post('/verify-2fa', protect, verify2FA);
 router.post('/2fa/setup', protect, require2FAComplete, setup2FA);

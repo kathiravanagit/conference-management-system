@@ -91,8 +91,8 @@
 .certificate-actions .btn {
   flex: 1;
   min-width: 150px;
-  background: var(--card-bg);
-  color: #667eea;
+  background: linear-gradient(135deg, #ffffff, #edf1f6);
+  color: var(--ink-800);
   font-weight: 600;
   border: none;
 }
@@ -105,7 +105,7 @@
 
 .btn-primary {
   background: var(--card-bg) !important;
-  color: #667eea !important;
+  color: var(--ink-800) !important;
 }
 
 .btn-secondary {

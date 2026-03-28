@@ -58,6 +58,8 @@ PORT=5000
 BREVO_API_KEY=your_brevo_api_key
 BREVO_SENDER_EMAIL=noreply@mvit.edu.in
 CLIENT_URL=http://localhost:3000
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=openrouter/auto
 ```
 
 **Frontend (`frontend/.env`)**

@@ -13,6 +13,8 @@ require('dotenv').config();
 
 const connectDB = require('./config/database');
 const { errorHandler } = require('./middleware/error');
+const { attachRequestContext, logRequestLifecycle } = require('./middleware/requestContext');
+const { securityHeaders } = require('./middleware/securityHeaders');
 const setupSocketIO = require('./sockets/socketHandler');
 
 // Initialize express app (must be before any app.* usage)
@@ -35,8 +37,12 @@ const io = socketIO(server, {
 });
 
 // Middleware
+app.disable('x-powered-by');
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:3000' }));
-app.use(express.json());
+app.use(securityHeaders);
+app.use(attachRequestContext);
+app.use(logRequestLifecycle);
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static('uploads'));
 
 // Connect to MongoDB
@@ -63,7 +69,13 @@ app.use('/api/admin', require('./routes/admin'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ success: true, message: 'Server is running' });
+  res.status(200).json({
+    success: true,
+    message: 'Server is running',
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    requestId: req.requestId,
+  });
 });
 
 // API root endpoint
@@ -107,7 +119,7 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`\nServer running on port ${PORT}`);
   console.log(`API Documentation: http://localhost:${PORT}/api`);
-  console.log(`MongoDB: ${process.env.MONGO_URI}\n`);
+  console.log('MongoDB: connected\n');
 });
 
 module.exports = { app, server, io };

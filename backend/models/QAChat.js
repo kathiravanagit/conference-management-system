@@ -42,4 +42,7 @@ const qaChatSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+qaChatSchema.index({ conferenceId: 1, createdAt: -1 });
+qaChatSchema.index({ userId: 1, createdAt: -1 });
+
 module.exports = mongoose.model('QAChat', qaChatSchema);

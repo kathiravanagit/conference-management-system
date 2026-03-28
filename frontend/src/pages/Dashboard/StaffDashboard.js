@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   certificateAPI,
   qaAPI,
@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import './StaffDashboard.css';
 
 const StaffDashboard = () => {
+  const navigate = useNavigate();
   const [dashboard, setDashboard] = useState(null);
   const [conferences, setConferences] = useState([]);
   const [upcomingConferences, setUpcomingConferences] = useState([]);
@@ -197,7 +198,9 @@ const StaffDashboard = () => {
         },
       };
 
-      await conferenceAPI.create(payload);
+      const response = await conferenceAPI.create(payload);
+      const createdConference = response?.data?.conference;
+
       setSuccess('Conference created successfully.');
       setConferenceForm({
         title: '',
@@ -217,6 +220,10 @@ const StaffDashboard = () => {
         agenda: '',
       });
       await loadDashboard();
+
+      if (createdConference?._id) {
+        navigate(`/conference/${createdConference._id}/meeting`);
+      }
     } catch (err) {
       setError(handleApiError(err));
     }

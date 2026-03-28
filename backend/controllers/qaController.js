@@ -1,6 +1,7 @@
 const QAChat = require('../models/QAChat');
 const Leaderboard = require('../models/Leaderboard');
 const { calculatePoints } = require('../utils/helpers');
+const mongoose = require('mongoose');
 
 /**
  * Post question/message in Q&A
@@ -61,19 +62,37 @@ exports.postMessage = async (req, res, next) => {
 exports.getConferenceQA = async (req, res, next) => {
   try {
     const { type = 'all' } = req.query;
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const skip = (page - 1) * limit;
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.conferenceId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid conference ID',
+      });
+    }
 
     let query = { conferenceId: req.params.conferenceId };
     if (type === 'questions') {
       query.isQuestion = true;
     }
 
-    const messages = await QAChat.find(query)
-      .populate('userId', 'name email')
-      .sort({ createdAt: -1 });
+    const [messages, total] = await Promise.all([
+      QAChat.find(query)
+        .populate('userId', 'name email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      QAChat.countDocuments(query),
+    ]);
 
     res.status(200).json({
       success: true,
       count: messages.length,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
       messages,
     });
   } catch (error) {
@@ -90,11 +109,25 @@ exports.getConferenceQA = async (req, res, next) => {
  */
 exports.likeMessage = async (req, res, next) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid message ID',
+      });
+    }
+
     const qAChat = await QAChat.findByIdAndUpdate(
       req.params.id,
       { $inc: { likes: 1 } },
       { new: true }
     );
+
+    if (!qAChat) {
+      return res.status(404).json({
+        success: false,
+        message: 'Message not found',
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -117,6 +150,13 @@ exports.replyToMessage = async (req, res, next) => {
   try {
     const { message } = req.body;
 
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid message ID',
+      });
+    }
+
     if (!message) {
       return res.status(400).json({
         success: false,
@@ -137,6 +177,13 @@ exports.replyToMessage = async (req, res, next) => {
       { new: true }
     );
 
+    if (!qAChat) {
+      return res.status(404).json({
+        success: false,
+        message: 'Message not found',
+      });
+    }
+
     res.status(200).json({
       success: true,
       message: 'Reply posted successfully',
@@ -156,6 +203,13 @@ exports.replyToMessage = async (req, res, next) => {
  */
 exports.deleteMessage = async (req, res, next) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid message ID',
+      });
+    }
+
     const qAChat = await QAChat.findById(req.params.id);
 
     if (!qAChat) {
