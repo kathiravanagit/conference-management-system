@@ -39,6 +39,9 @@
   --danger-soft-bg: rgba(220, 38, 38, 0.06);
   --text-on-card: var(--ink-900);
   --text-muted: var(--ink-500);
+  --btn-primary-bg-start: #ffffff;
+  --btn-primary-bg-end: #edf1f6;
+  --btn-primary-text: #1a2744;
 }
 
 /* ─── Dark theme ─── */
@@ -81,6 +84,9 @@
   --danger-soft-bg: rgba(220, 38, 38, 0.12);
   --text-on-card: #e8ecf1;
   --text-muted: #8a97ad;
+  --btn-primary-bg-start: #f6f8fc;
+  --btn-primary-bg-end: #e6ebf3;
+  --btn-primary-text: #17233a;
 }
 
 html,
