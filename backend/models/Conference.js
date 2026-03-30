@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const generateMeetingId = () => `MTG-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
 /**
  * Conference Schema
  * Stores conference/event details
@@ -32,6 +34,25 @@ const conferenceSchema = new mongoose.Schema(
       email: String,
       bio: String,
       linkedin: String,
+    },
+    meetingId: {
+      type: String,
+      unique: true,
+      index: true,
+      default: generateMeetingId,
+    },
+    meetingPasswordHash: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    meetingPasswordEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    allowParticipantScreenShare: {
+      type: Boolean,
+      default: true,
     },
     department: {
       type: String,
@@ -77,5 +98,12 @@ const conferenceSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+conferenceSchema.pre('save', function assignMeetingId(next) {
+  if (!this.meetingId) {
+    this.meetingId = generateMeetingId();
+  }
+  next();
+});
 
 module.exports = mongoose.model('Conference', conferenceSchema);

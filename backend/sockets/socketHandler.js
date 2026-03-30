@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const QAChat = require('../models/QAChat');
 const Conference = require('../models/Conference');
@@ -17,14 +18,33 @@ const getOrCreateVideoRoomState = (roomId) => {
       recentReactions: [],
       userMap: {},
       hostId: null,
+      waitingMap: {},
+      approvedUserIds: {},
+      screenShareEnabled: true,
+      meetingStarted: false,
     });
   }
   return videoRoomState.get(roomId);
 };
 
+const isMeetingHostOrAdmin = (roomState, userId, role) => {
+  if (!roomState || !userId) return false;
+  return role === 'admin' || (roomState.hostId && userId === roomState.hostId);
+};
+
+const getWaitingList = (roomState) =>
+  Object.entries(roomState.waitingMap || {}).map(([socketId, user]) => ({
+    socketId,
+    userId: user.userId,
+    userName: user.userName,
+    requestedAt: user.requestedAt,
+  }));
+
 const cleanupVideoRoomState = (io, roomId) => {
   const room = io.sockets.adapter.rooms.get(roomId);
-  if (!room || room.size === 0) {
+  const roomState = videoRoomState.get(roomId);
+  const hasWaitingUsers = !!roomState && Object.keys(roomState.waitingMap || {}).length > 0;
+  if ((!room || room.size === 0) && !hasWaitingUsers) {
     videoRoomState.delete(roomId);
   }
 };
@@ -58,6 +78,7 @@ const extractJoinPayload = (rawRoomId, rawUserId, rawToken) => {
       userId: rawRoomId.userId,
       userName: rawRoomId.userName,
       token: rawRoomId.token,
+      meetingPassword: rawRoomId.meetingPassword,
     };
   }
 
@@ -66,6 +87,7 @@ const extractJoinPayload = (rawRoomId, rawUserId, rawToken) => {
     userId: rawUserId,
     userName: 'Participant',
     token: rawToken,
+    meetingPassword: undefined,
   };
 };
 
@@ -196,20 +218,72 @@ const setupSocketIO = (io) => {
         return;
       }
 
-      socket.join(roomId);
-      socket.data.videoRoomId = roomId;
-
       const roomState = getOrCreateVideoRoomState(roomId);
-      roomState.userMap[socket.id] = {
+      const userEntry = {
         userId: decoded.id,
         userName: normalizeDisplayName(payload.userName),
         role: decoded.role,
       };
 
-      if (!roomState.hostId && mongoose.Types.ObjectId.isValid(roomId)) {
-        const conf = await Conference.findById(roomId).select('createdBy').lean();
-        roomState.hostId = conf?.createdBy?.toString() || null;
+      let conf = null;
+      if (mongoose.Types.ObjectId.isValid(roomId)) {
+        conf = await Conference.findById(roomId)
+          .select('createdBy allowParticipantScreenShare meetingPasswordEnabled meetingPasswordHash')
+          .lean();
       }
+
+      if (!roomState.hostId && conf) {
+        roomState.hostId = conf?.createdBy?.toString() || null;
+        roomState.screenShareEnabled = conf?.allowParticipantScreenShare !== false;
+      }
+
+      const isPrivilegedUser = isMeetingHostOrAdmin(roomState, decoded.id, decoded.role);
+      const isPreviouslyApproved = !!roomState.approvedUserIds?.[decoded.id];
+
+      if (!isPrivilegedUser && conf?.meetingPasswordEnabled) {
+        const matchesPassword = await bcrypt.compare(String(payload.meetingPassword || ''), conf.meetingPasswordHash || '');
+        if (!matchesPassword) {
+          socket.emit('video-room-auth-error', { message: 'Incorrect meeting password.' });
+          return;
+        }
+      }
+
+      if (!isPrivilegedUser && !isPreviouslyApproved) {
+        roomState.waitingMap[socket.id] = {
+          ...userEntry,
+          requestedAt: new Date(),
+        };
+        socket.data.pendingVideoRoomId = roomId;
+
+        socket.emit('waiting-room-status', {
+          status: roomState.meetingStarted ? 'pending' : 'not-started',
+          message: roomState.meetingStarted
+            ? 'Waiting for host approval.'
+            : 'Host has not started the meeting yet. Please wait.',
+        });
+
+        const hostSockets = Object.entries(roomState.userMap)
+          .filter(([, user]) => isMeetingHostOrAdmin(roomState, user.userId, user.role))
+          .map(([socketId]) => socketId);
+
+        hostSockets.forEach((hostSocketId) => {
+          io.to(hostSocketId).emit('waiting-room-requested', {
+            socketId: socket.id,
+            userId: userEntry.userId,
+            userName: userEntry.userName,
+            requestedAt: roomState.waitingMap[socket.id].requestedAt,
+          });
+          io.to(hostSocketId).emit('video-waiting-list', { waiting: getWaitingList(roomState) });
+        });
+        return;
+      }
+
+      delete roomState.waitingMap[socket.id];
+      roomState.approvedUserIds[userEntry.userId] = true;
+      socket.join(roomId);
+      socket.data.videoRoomId = roomId;
+      delete socket.data.pendingVideoRoomId;
+      roomState.userMap[socket.id] = userEntry;
 
       if (roomState.recentChat.length === 0 && mongoose.Types.ObjectId.isValid(roomId)) {
         const history = await MeetingChat.find({ conferenceId: roomId })
@@ -232,9 +306,92 @@ const setupSocketIO = (io) => {
         handStates: roomState.handStates,
         recentChat: roomState.recentChat,
         recentReactions: roomState.recentReactions,
+        screenShareEnabled: roomState.screenShareEnabled,
+        meetingStarted: roomState.meetingStarted,
       });
 
+      if (isPrivilegedUser) {
+        socket.emit('video-waiting-list', { waiting: getWaitingList(roomState) });
+      }
+
       socket.to(roomId).emit('user-connected', { userId: decoded.id, socketId: socket.id });
+    });
+
+    socket.on('approve-video-participant', ({ roomId, targetSocketId } = {}) => {
+      if (!roomId || !targetSocketId) return;
+
+      const roomState = videoRoomState.get(roomId);
+      const actor = roomState?.userMap?.[socket.id];
+      const canManageWaiting = isMeetingHostOrAdmin(roomState, actor?.userId, actor?.role);
+      if (!canManageWaiting) {
+        socket.emit('meeting-action-denied', { message: 'Only the host can admit participants.' });
+        return;
+      }
+
+      const pendingUser = roomState?.waitingMap?.[targetSocketId];
+      const targetSocket = io.sockets.sockets.get(targetSocketId);
+      if (!pendingUser || !targetSocket) {
+        socket.emit('video-waiting-list', { waiting: getWaitingList(roomState) });
+        return;
+      }
+
+      delete roomState.waitingMap[targetSocketId];
+      roomState.approvedUserIds[pendingUser.userId] = true;
+      roomState.userMap[targetSocketId] = {
+        userId: pendingUser.userId,
+        userName: pendingUser.userName,
+        role: pendingUser.role,
+      };
+
+      targetSocket.join(roomId);
+      targetSocket.data.videoRoomId = roomId;
+      delete targetSocket.data.pendingVideoRoomId;
+
+      targetSocket.emit('waiting-room-status', {
+        status: 'approved',
+        message: 'You have been admitted to the meeting.',
+      });
+
+      targetSocket.emit('video-room-state', {
+        handStates: roomState.handStates,
+        recentChat: roomState.recentChat,
+        recentReactions: roomState.recentReactions,
+        screenShareEnabled: roomState.screenShareEnabled,
+        meetingStarted: roomState.meetingStarted,
+      });
+
+      io.to(roomId).emit('user-connected', { userId: pendingUser.userId, socketId: targetSocketId });
+      io.to(roomId).emit('video-waiting-list', { waiting: getWaitingList(roomState) });
+    });
+
+    socket.on('reject-video-participant', ({ roomId, targetSocketId } = {}) => {
+      if (!roomId || !targetSocketId) return;
+
+      const roomState = videoRoomState.get(roomId);
+      const actor = roomState?.userMap?.[socket.id];
+      const canManageWaiting = isMeetingHostOrAdmin(roomState, actor?.userId, actor?.role);
+      if (!canManageWaiting) {
+        socket.emit('meeting-action-denied', { message: 'Only the host can reject participants.' });
+        return;
+      }
+
+      const pendingUser = roomState?.waitingMap?.[targetSocketId];
+      const targetSocket = io.sockets.sockets.get(targetSocketId);
+      if (!pendingUser) {
+        socket.emit('video-waiting-list', { waiting: getWaitingList(roomState) });
+        return;
+      }
+
+      delete roomState.waitingMap[targetSocketId];
+      if (targetSocket) {
+        targetSocket.emit('waiting-room-status', {
+          status: 'rejected',
+          message: 'Host declined your join request.',
+        });
+        delete targetSocket.data.pendingVideoRoomId;
+      }
+
+      io.to(roomId).emit('video-waiting-list', { waiting: getWaitingList(roomState) });
     });
 
     socket.on('video-offer', (data) => {
@@ -363,6 +520,80 @@ const setupSocketIO = (io) => {
       io.to(roomId).emit('video-chat-message', payload);
     });
 
+    socket.on('video-private-message', (data) => {
+      const { roomId, targetSocketId, text } = data || {};
+      if (!roomId || !targetSocketId || !text) return;
+
+      const normalizedText = sanitizeChatText(text);
+      if (!normalizedText || normalizedText.length > MAX_CHAT_MESSAGE_LENGTH) {
+        socket.emit('video-chat-error', {
+          message: `Message must be 1-${MAX_CHAT_MESSAGE_LENGTH} characters.`,
+        });
+        return;
+      }
+
+      const roomState = getOrCreateVideoRoomState(roomId);
+      const sender = roomState.userMap[socket.id];
+      const receiver = roomState.userMap[targetSocketId];
+      if (!sender?.userId || !receiver?.userId) {
+        socket.emit('video-chat-error', { message: 'Private chat target is not available.' });
+        return;
+      }
+
+      const payload = {
+        id: new mongoose.Types.ObjectId().toString(),
+        socketId: socket.id,
+        author: sender.userName || 'Participant',
+        text: normalizedText,
+        time: new Date(),
+      };
+
+      socket.emit('video-private-message', payload);
+      socket.to(targetSocketId).emit('video-private-message', payload);
+    });
+
+    socket.on('set-screen-share-permission', ({ roomId, enabled } = {}) => {
+      if (!roomId || typeof enabled !== 'boolean') return;
+
+      const roomState = videoRoomState.get(roomId);
+      const actor = roomState?.userMap?.[socket.id];
+      const isAuthorized = isMeetingHostOrAdmin(roomState, actor?.userId, actor?.role);
+      if (!isAuthorized) {
+        socket.emit('meeting-action-denied', { message: 'Only host/admin can change screen share permissions.' });
+        return;
+      }
+
+      roomState.screenShareEnabled = enabled;
+      if (mongoose.Types.ObjectId.isValid(roomId)) {
+        Conference.findByIdAndUpdate(roomId, { allowParticipantScreenShare: enabled }).catch((error) => {
+          console.error('Failed to persist screen share setting:', error.message);
+        });
+      }
+      io.to(roomId).emit('screen-share-permission-updated', { enabled });
+    });
+
+    socket.on('remove-participant', ({ roomId, targetSocketId } = {}) => {
+      if (!roomId || !targetSocketId) return;
+
+      const roomState = videoRoomState.get(roomId);
+      const actor = roomState?.userMap?.[socket.id];
+      const isAuthorized = isMeetingHostOrAdmin(roomState, actor?.userId, actor?.role);
+      if (!isAuthorized) {
+        socket.emit('meeting-action-denied', { message: 'Only host/admin can remove participants.' });
+        return;
+      }
+
+      const targetSocket = io.sockets.sockets.get(targetSocketId);
+      if (!targetSocket) return;
+
+      targetSocket.emit('removed-from-meeting', { message: 'Host removed you from the meeting.' });
+      targetSocket.leave(roomId);
+      delete roomState.userMap[targetSocketId];
+      delete roomState.handStates[targetSocketId];
+
+      io.to(roomId).emit('user-disconnected', targetSocketId);
+    });
+
     socket.on('video-reaction', (data) => {
       const { roomId, emoji } = data || {};
       if (!roomId || !emoji) return;
@@ -427,6 +658,51 @@ const setupSocketIO = (io) => {
       socket.to(roomId).emit('trigger-mute-all');
     });
 
+    socket.on('mute-single-participant', ({ roomId, targetSocketId } = {}) => {
+      if (!roomId || !targetSocketId) return;
+
+      const roomState = videoRoomState.get(roomId);
+      const actor = roomState?.userMap?.[socket.id];
+      const isAuthorized = !!actor && (
+        actor.role === 'admin' ||
+        (roomState?.hostId && actor.userId === roomState.hostId)
+      );
+
+      if (!isAuthorized) {
+        socket.emit('meeting-action-denied', { message: 'Only the host can mute participants.' });
+        return;
+      }
+
+      io.to(targetSocketId).emit('trigger-mute-single');
+    });
+
+    socket.on('start-meeting', (roomId) => {
+      if (!roomId) return;
+
+      const roomState = videoRoomState.get(roomId);
+      const actor = roomState?.userMap?.[socket.id];
+      const isAuthorized = !!actor && (
+        actor.role === 'admin' ||
+        (roomState?.hostId && actor.userId === roomState.hostId)
+      );
+
+      if (!isAuthorized) {
+        socket.emit('meeting-action-denied', { message: 'Only the host can start the meeting.' });
+        return;
+      }
+
+      roomState.meetingStarted = true;
+      io.to(roomId).emit('meeting-status-updated', { meetingStarted: true });
+
+      Object.keys(roomState.waitingMap || {}).forEach((waitingSocketId) => {
+        io.to(waitingSocketId).emit('waiting-room-status', {
+          status: 'pending',
+          message: 'Meeting started. Waiting for host approval.',
+        });
+      });
+      io.to(roomId).emit('video-waiting-list', { waiting: getWaitingList(roomState) });
+    });
+
     socket.on('end-meeting-for-all', (roomId) => {
       const roomState = videoRoomState.get(roomId);
       const actor = roomState?.userMap?.[socket.id];
@@ -440,11 +716,28 @@ const setupSocketIO = (io) => {
         return;
       }
 
+      roomState.meetingStarted = false;
       io.to(roomId).emit('meeting-ended-by-host');
     });
 
     socket.on('disconnect', () => {
       console.log(`User disconnected: ${socket.id}`);
+
+      const pendingRoomId = socket.data.pendingVideoRoomId;
+      if (pendingRoomId) {
+        const pendingRoomState = videoRoomState.get(pendingRoomId);
+        if (pendingRoomState) {
+          delete pendingRoomState.waitingMap[socket.id];
+
+          const hostSockets = Object.entries(pendingRoomState.userMap)
+            .filter(([, user]) => isMeetingHostOrAdmin(pendingRoomState, user.userId, user.role))
+            .map(([socketId]) => socketId);
+
+          hostSockets.forEach((hostSocketId) => {
+            io.to(hostSocketId).emit('video-waiting-list', { waiting: getWaitingList(pendingRoomState) });
+          });
+        }
+      }
 
       const roomId = socket.data.videoRoomId;
       if (roomId) {

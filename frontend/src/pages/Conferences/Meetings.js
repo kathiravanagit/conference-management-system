@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { conferenceAPI, registrationAPI } from '../../utils/api';
-import { formatDate, handleApiError } from '../../utils/helpers';
+import { formatDate, formatTime, handleApiError } from '../../utils/helpers';
 import { useAuth } from '../../context/AuthContext';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import Loading from '../../components/ui/Loading';
@@ -55,6 +55,7 @@ const Meetings = () => {
 
   const ongoingConferences = useMemo(() => visibleConferences.filter((conference) => conference.status === 'ongoing'), [visibleConferences]);
   const upcomingConferences = useMemo(() => visibleConferences.filter((conference) => conference.status === 'upcoming'), [visibleConferences]);
+  const totalVisible = visibleConferences.length;
 
   // Early return for loading
   if (loading) {
@@ -81,6 +82,20 @@ const Meetings = () => {
         <div className="meetings-header">
           <h1>Conference Meetings</h1>
           <p>Join live conferences from your account across any device.</p>
+          <div className="meeting-summary-row">
+            <div className="meeting-summary-chip">
+              <span className="summary-label">Live Now</span>
+              <strong>{ongoingConferences.length}</strong>
+            </div>
+            <div className="meeting-summary-chip">
+              <span className="summary-label">Upcoming</span>
+              <strong>{upcomingConferences.length}</strong>
+            </div>
+            <div className="meeting-summary-chip">
+              <span className="summary-label">Available to You</span>
+              <strong>{totalVisible}</strong>
+            </div>
+          </div>
         </div>
 
         {error && <ErrorMessage message={error} onClose={() => setError('')} />}
@@ -97,12 +112,18 @@ const Meetings = () => {
                   <h3>{conference.title}</h3>
                   <p>{conference.department} Department</p>
                   <p>{formatDate(conference.date)}</p>
-                  <Link
-                    to={`/conference/${conference._id}/meeting`}
-                    className="btn btn-primary"
-                  >
-                    Join Live Meeting
-                  </Link>
+                  <p>{formatTime(conference.date)}{conference.endDate && <> - {formatTime(conference.endDate)}</>}</p>
+                  <div className="meeting-actions">
+                    <Link
+                      to={`/conference/${conference._id}/meeting`}
+                      className="btn btn-primary"
+                    >
+                      Join Live Session
+                    </Link>
+                    <Link to={`/conference/${conference._id}`} className="btn btn-outline">
+                      View Details
+                    </Link>
+                  </div>
                 </article>
               ))}
             </div>
@@ -117,7 +138,8 @@ const Meetings = () => {
             <div className="meetings-grid">
               {upcomingConferences.map((conference) => {
                 // Staff who created the conference should only see 'Join Live Meeting'
-                const isCreator = user && conference.createdBy && user._id === conference.createdBy;
+                const creatorId = typeof conference.createdBy === 'object' ? conference.createdBy?._id : conference.createdBy;
+                const isCreator = !!(user && creatorId && user._id === creatorId);
                 const canJoin = canManageEvents || registeredIds.includes(conference._id) || isCreator;
                 return (
                   <article key={conference._id} className="meeting-card">
@@ -130,16 +152,31 @@ const Meetings = () => {
                     <h3>{conference.title}</h3>
                     <p>{conference.department} Department</p>
                     <p>{formatDate(conference.date)}</p>
-                    {['ongoing', 'upcoming'].includes(conference.status) ? (
-                      <Link
-                        to={`/conference/${conference._id}/meeting`}
-                        className={`btn ${canJoin ? 'btn-primary' : 'btn-outline'}`}
-                      >
-                        {isCreator ? 'Join Live Meeting' : canJoin ? 'Open Meeting' : 'Register to Join'}
+                    <p>{formatTime(conference.date)}{conference.endDate && <> - {formatTime(conference.endDate)}</>}</p>
+                    <div className="meeting-actions">
+                      {['ongoing', 'upcoming'].includes(conference.status) ? (
+                        canJoin ? (
+                          <Link
+                            to={`/conference/${conference._id}/meeting`}
+                            className="btn btn-primary"
+                          >
+                            {conference.status === 'ongoing' ? 'Join Live Session' : 'Open Meeting Room'}
+                          </Link>
+                        ) : (
+                          <Link
+                            to={`/conference/${conference._id}`}
+                            className="btn btn-outline"
+                          >
+                            Register to Join
+                          </Link>
+                        )
+                      ) : (
+                        <span className="link-pending">Meeting is over.</span>
+                      )}
+                      <Link to={`/conference/${conference._id}`} className="btn btn-outline">
+                        View Details
                       </Link>
-                    ) : (
-                      <span className="link-pending">Meeting is over.</span>
-                    )}
+                    </div>
                   </article>
                 );
               })}

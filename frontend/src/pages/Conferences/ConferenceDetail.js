@@ -108,6 +108,7 @@ const ConferenceDetail = () => {
               <p>Speaker: {conference.speaker?.name}</p>
               <p>Department: {conference.department}</p>
               <p>Attendees: {conference.attendeeCount}</p>
+              {conference.meetingId && <p>Meeting ID: {conference.meetingId}</p>}
             </div>
             <span className={`status ${conference.status}`}>{conference.status}</span>
           </div>

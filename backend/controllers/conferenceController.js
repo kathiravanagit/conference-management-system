@@ -1,5 +1,7 @@
 const Conference = require('../models/Conference');
 const { generateMeetingLink } = require('../utils/helpers');
+const bcrypt = require('bcryptjs');
+const MeetingRecording = require('../models/MeetingRecording');
 
 /**
  * Derive conference status from actual start/end datetime.
@@ -149,6 +151,8 @@ exports.createConference = async (req, res, next) => {
       status,
       enableCertificates,
       enableQA,
+      meetingPassword,
+      allowParticipantScreenShare,
     } = req.body;
 
     if (!title || !description || !date || !endDate || !speaker) {
@@ -193,6 +197,9 @@ exports.createConference = async (req, res, next) => {
       status: normalizedStatus,
       enableCertificates: enableCertificates !== undefined ? enableCertificates : false,
       enableQA: enableQA !== undefined ? enableQA : true,
+      meetingPasswordHash: meetingPassword ? await bcrypt.hash(String(meetingPassword), 10) : null,
+      meetingPasswordEnabled: !!meetingPassword,
+      allowParticipantScreenShare: allowParticipantScreenShare !== undefined ? !!allowParticipantScreenShare : true,
     });
 
     res.status(201).json({
@@ -213,7 +220,7 @@ exports.createConference = async (req, res, next) => {
  */
 exports.updateConference = async (req, res, next) => {
   try {
-    let conference = await Conference.findById(req.params.id);
+    let conference = await Conference.findById(req.params.id).select('+meetingPasswordHash');
 
     if (!conference) {
       return res.status(404).json({
@@ -230,7 +237,19 @@ exports.updateConference = async (req, res, next) => {
       });
     }
 
-    conference = await Conference.findByIdAndUpdate(req.params.id, req.body, {
+    const updateData = { ...req.body };
+    if (Object.prototype.hasOwnProperty.call(updateData, 'meetingPassword')) {
+      if (updateData.meetingPassword) {
+        updateData.meetingPasswordHash = await bcrypt.hash(String(updateData.meetingPassword), 10);
+        updateData.meetingPasswordEnabled = true;
+      } else {
+        updateData.meetingPasswordHash = null;
+        updateData.meetingPasswordEnabled = false;
+      }
+      delete updateData.meetingPassword;
+    }
+
+    conference = await Conference.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     });
@@ -244,6 +263,131 @@ exports.updateConference = async (req, res, next) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+/**
+ * Validate meeting password before join
+ * POST /api/conferences/:id/meeting-auth
+ */
+exports.authorizeMeetingJoin = async (req, res) => {
+  try {
+    const { password } = req.body;
+    const conference = await Conference.findById(req.params.id).select('+meetingPasswordHash');
+
+    if (!conference) {
+      return res.status(404).json({ success: false, message: 'Conference not found' });
+    }
+
+    const isHostOrAdmin = conference.createdBy?.toString() === req.user.id || req.user.role === 'admin';
+    if (isHostOrAdmin) {
+      return res.status(200).json({
+        success: true,
+        authorized: true,
+        meetingId: conference.meetingId,
+        meetingPasswordEnabled: conference.meetingPasswordEnabled,
+      });
+    }
+
+    if (!conference.meetingPasswordEnabled) {
+      return res.status(200).json({
+        success: true,
+        authorized: true,
+        meetingId: conference.meetingId,
+        meetingPasswordEnabled: false,
+      });
+    }
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        authorized: false,
+        message: 'Meeting password is required.',
+      });
+    }
+
+    const matches = await bcrypt.compare(String(password), conference.meetingPasswordHash || '');
+    if (!matches) {
+      return res.status(401).json({
+        success: false,
+        authorized: false,
+        message: 'Incorrect meeting password.',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      authorized: true,
+      meetingId: conference.meetingId,
+      meetingPasswordEnabled: true,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Upload a meeting recording (host/admin)
+ * POST /api/conferences/:id/recordings
+ */
+exports.uploadRecording = async (req, res) => {
+  try {
+    const conference = await Conference.findById(req.params.id);
+    if (!conference) {
+      return res.status(404).json({ success: false, message: 'Conference not found' });
+    }
+
+    const isHostOrAdmin = conference.createdBy?.toString() === req.user.id || req.user.role === 'admin';
+    if (!isHostOrAdmin) {
+      return res.status(403).json({ success: false, message: 'Only host/admin can upload recordings' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Recording file is required' });
+    }
+
+    const recording = await MeetingRecording.create({
+      conferenceId: conference._id,
+      uploadedBy: req.user.id,
+      title: req.body.title || `${conference.title} Recording`,
+      fileUrl: `/uploads/recordings/${req.file.filename}`,
+      mimeType: req.file.mimetype,
+      durationSeconds: Number(req.body.durationSeconds || 0),
+      sizeBytes: Number(req.file.size || 0),
+    });
+
+    return res.status(201).json({ success: true, recording });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * List recordings for host/admin
+ * GET /api/conferences/:id/recordings
+ */
+exports.getRecordings = async (req, res) => {
+  try {
+    const conference = await Conference.findById(req.params.id);
+    if (!conference) {
+      return res.status(404).json({ success: false, message: 'Conference not found' });
+    }
+
+    const isHostOrAdmin = conference.createdBy?.toString() === req.user.id || req.user.role === 'admin';
+    if (!isHostOrAdmin) {
+      return res.status(403).json({ success: false, message: 'Only host/admin can access recordings' });
+    }
+
+    const recordings = await MeetingRecording.find({ conferenceId: conference._id })
+      .sort({ createdAt: -1 })
+      .populate('uploadedBy', 'name email');
+
+    return res.status(200).json({ success: true, recordings });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
   }
 };
 

@@ -11,6 +11,11 @@ export const conferenceAPI = {
   create: (data) => axios.post(`${API_URL}/conferences`, data),
   update: (id, data) => axios.put(`${API_URL}/conferences/${id}`, data),
   delete: (id) => axios.delete(`${API_URL}/conferences/${id}`),
+  authorizeMeetingJoin: (id, password) => axios.post(`${API_URL}/conferences/${id}/meeting-auth`, { password }),
+  getRecordings: (id) => axios.get(`${API_URL}/conferences/${id}/recordings`),
+  uploadRecording: (id, formData) => axios.post(`${API_URL}/conferences/${id}/recordings`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
   uploadPoster: (id, file) => {
     const formData = new FormData();
     formData.append('poster', file);

@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const multer = require('multer');
 const CompletedConference = require('../models/CompletedConference');
 const {
   getAllConferences,
@@ -8,9 +10,32 @@ const {
   updateConference,
   deleteConference,
   uploadPoster,
+  authorizeMeetingJoin,
+  uploadRecording,
+  getRecordings,
 } = require('../controllers/conferenceController');
 const { protect, authorize, require2FAComplete } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+
+const recordingStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, 'uploads/recordings/'),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, `recording-${uniqueSuffix}${path.extname(file.originalname)}`);
+  },
+});
+
+const recordingUpload = multer({
+  storage: recordingStorage,
+  limits: { fileSize: 1024 * 1024 * 500 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /webm|mp4|x-matroska/;
+    const isMimeAllowed = allowed.test(file.mimetype);
+    const isExtAllowed = /\.webm|\.mp4|\.mkv/i.test(path.extname(file.originalname));
+    if (isMimeAllowed || isExtAllowed) return cb(null, true);
+    return cb(new Error('Only video files (webm/mp4/mkv) are allowed for recordings'));
+  },
+});
 
 /**
  * Conference Routes
@@ -32,6 +57,9 @@ router.get('/completed', async (req, res) => {
 });
 
 router.get('/:id', getConference);
+router.post('/:id/meeting-auth', protect, authorizeMeetingJoin);
+router.get('/:id/recordings', protect, getRecordings);
+router.post('/:id/recordings', protect, recordingUpload.single('recording'), uploadRecording);
 
 // Staff/Admin protected routes
 router.post('/', protect, require2FAComplete, authorize('admin', 'staff'), createConference);

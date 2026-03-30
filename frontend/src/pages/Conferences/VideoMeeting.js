@@ -47,13 +47,27 @@ const VideoMeeting = () => {
 
     const [conferenceTitle, setConferenceTitle] = useState('Live Session');
     const [conferenceSchedule, setConferenceSchedule] = useState([]);
+    const [publicMeetingId, setPublicMeetingId] = useState('');
+    const [joinPhase, setJoinPhase] = useState('lobby');
+    const [waitingMessage, setWaitingMessage] = useState('Waiting for host approval.');
+    const [waitingRequests, setWaitingRequests] = useState([]);
+    const [joiningMeeting, setJoiningMeeting] = useState(false);
+    const [meetingPassword, setMeetingPassword] = useState('');
+    const [requiresMeetingPassword, setRequiresMeetingPassword] = useState(false);
+    const [screenShareAllowed, setScreenShareAllowed] = useState(true);
+    const [selectedPrivateTarget, setSelectedPrivateTarget] = useState('all');
+    const [recordings, setRecordings] = useState([]);
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingError, setRecordingError] = useState('');
+    const [meetingStarted, setMeetingStarted] = useState(false);
+    const [isStartingMeeting, setIsStartingMeeting] = useState(false);
 
     const [isPanelOpen, setIsPanelOpen] = useState(true);
     const [activePanelTab, setActivePanelTab] = useState('participants');
     const [layoutMode, setLayoutMode] = useState('focus');
     const [isHandRaised, setIsHandRaised] = useState(false);
     const [quickReaction, setQuickReaction] = useState('');
-    const [connectionState, setConnectionState] = useState('connecting');
+    const [connectionState, setConnectionState] = useState('disconnected');
     const [showEndMeetingConfirm, setShowEndMeetingConfirm] = useState(false);
     const [showMuteAllConfirm, setShowMuteAllConfirm] = useState(false);
 
@@ -73,6 +87,8 @@ const VideoMeeting = () => {
     const streamRef = useRef(null);
     const containerRef = useRef();
     const chatEndRef = useRef();
+    const mediaRecorderRef = useRef(null);
+    const recordedChunksRef = useRef([]);
 
     useEffect(() => {
         streamRef.current = stream;
@@ -84,23 +100,28 @@ const VideoMeeting = () => {
             return;
         }
 
-        const initMeeting = async () => {
-            let isHostVal = false;
+        const initLobby = async () => {
             try {
                 const res = await conferenceAPI.getById(conferenceId);
                 const conference = res.data.conference;
                 const confCreator = conference?.createdBy;
                 const creatorId = typeof confCreator === 'object' ? confCreator._id : confCreator;
-                isHostVal = creatorId === user?._id;
+                const isHostVal = creatorId === user?._id;
+                const canManageRoom = isHostVal || user?.role === 'admin';
                 setIsHost(isHostVal);
                 setConferenceTitle(conference?.title || 'Live Session');
                 setConferenceSchedule(Array.isArray(conference?.schedule) ? conference.schedule : []);
+                setPublicMeetingId(conference?.meetingId || conferenceId.slice(0, 10));
+                setRequiresMeetingPassword(!!conference?.meetingPasswordEnabled && !canManageRoom);
+                setScreenShareAllowed(conference?.allowParticipantScreenShare !== false);
+
+                if (canManageRoom) {
+                    const recordingResponse = await conferenceAPI.getRecordings(conferenceId);
+                    setRecordings(recordingResponse.data?.recordings || []);
+                }
             } catch (err) {
                 console.error('Failed to fetch conference details for host check', err);
             }
-
-            socketRef.current = io(SOCKET_URL, { transports: ['websocket'] });
-            setConnectionState('connecting');
 
             try {
                 const currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -108,37 +129,47 @@ const VideoMeeting = () => {
                 if (localVideoRef.current) {
                     localVideoRef.current.srcObject = currentStream;
                 }
-
-                setupSocketListeners(currentStream, isHostVal);
             } catch (err) {
                 console.error('Failed to get local stream', err);
                 setError('Camera and microphone permissions are required to join the meeting.');
             }
         };
 
-        initMeeting();
-
-        const currentPeers = peersRef.current;
-        const currentSocket = socketRef.current;
+        initLobby();
 
         return () => {
-            if (currentPeers) {
-                Object.values(currentPeers).forEach((peerObj) => {
-                    peerObj.peer.close();
-                });
-                peersRef.current = {};
-            }
+            Object.values(peersRef.current).forEach((peerObj) => {
+                peerObj.peer.close();
+            });
+            peersRef.current = {};
+
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach((track) => track.stop());
             }
-            if (currentSocket) {
-                currentSocket.disconnect();
+
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketRef.current = null;
             }
+
+            if (screenStream) {
+                screenStream.getTracks().forEach((track) => track.stop());
+            }
+
             setPeers({});
             setPeersInfo({});
+            setWaitingRequests([]);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [conferenceId]);
+    }, [conferenceId, isAuthenticated]);
+
+    useEffect(() => {
+        return () => {
+            if (socketRef.current) {
+                socketRef.current.off();
+            }
+        };
+    }, []);
 
     useEffect(() => {
         if (localVideoRef.current) {
@@ -169,6 +200,61 @@ const VideoMeeting = () => {
     }, [quickReaction]);
 
     useEffect(() => {
+        const streams = [{ socketId: null, stream }, ...Object.entries(peers).map(([socketId, s]) => ({ socketId, stream: s }))]
+            .filter((entry) => entry.stream && entry.stream.getAudioTracks().length > 0);
+
+        if (streams.length === 0) return undefined;
+
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return undefined;
+
+        const audioContext = new AudioCtx();
+        const analysers = streams.map(({ socketId, stream: mediaStream }) => {
+            const source = audioContext.createMediaStreamSource(mediaStream);
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 512;
+            source.connect(analyser);
+            return { socketId, analyser, buffer: new Uint8Array(analyser.frequencyBinCount), source };
+        });
+
+        const interval = setInterval(() => {
+            let loudest = { socketId: activeSpeakerSocketId, level: 0 };
+
+            analysers.forEach((entry) => {
+                entry.analyser.getByteTimeDomainData(entry.buffer);
+                let sum = 0;
+                for (let i = 0; i < entry.buffer.length; i += 1) {
+                    const centered = (entry.buffer[i] - 128) / 128;
+                    sum += centered * centered;
+                }
+                const rms = Math.sqrt(sum / entry.buffer.length);
+                if (rms > loudest.level) {
+                    loudest = { socketId: entry.socketId, level: rms };
+                }
+            });
+
+            if (loudest.level > 0.035 && loudest.socketId !== activeSpeakerSocketId) {
+                setActiveSpeakerSocketId(loudest.socketId);
+            }
+            if (loudest.level <= 0.035) {
+                setActiveSpeakerSocketId(null);
+            }
+        }, 700);
+
+        return () => {
+            clearInterval(interval);
+            analysers.forEach((entry) => {
+                try {
+                    entry.source.disconnect();
+                } catch (err) {
+                    // ignore disconnect errors from already-closed contexts
+                }
+            });
+            audioContext.close().catch(() => undefined);
+        };
+    }, [stream, peers, activeSpeakerSocketId]);
+
+    useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatMessages]);
 
@@ -195,6 +281,7 @@ const VideoMeeting = () => {
             userId: user?._id,
             userName: user?.name || 'Participant',
             token: localStorage.getItem('token'),
+            meetingPassword,
         });
     };
 
@@ -252,7 +339,11 @@ const VideoMeeting = () => {
             ]);
         });
 
-        socketRef.current.on('video-room-state', ({ handStates = {}, recentChat = [], recentReactions = [] }) => {
+        socketRef.current.on('video-room-state', ({ handStates = {}, recentChat = [], recentReactions = [], screenShareEnabled = true, meetingStarted: started = false }) => {
+            setJoinPhase('joined');
+            setJoiningMeeting(false);
+            setScreenShareAllowed(screenShareEnabled);
+            setMeetingStarted(!!started);
             const nextInfo = {};
             Object.entries(handStates).forEach(([socketId, handRaised]) => {
                 if (socketId !== socketRef.current.id) {
@@ -292,7 +383,56 @@ const VideoMeeting = () => {
         });
 
         socketRef.current.on('video-room-auth-error', ({ message }) => {
+            setJoiningMeeting(false);
             setError(message || 'Session expired. Please login again.');
+        });
+
+        socketRef.current.on('waiting-room-status', ({ status, message }) => {
+            if (status === 'pending' || status === 'not-started') {
+                setJoinPhase('waiting');
+                setJoiningMeeting(false);
+                setWaitingMessage(message || 'Waiting for host approval.');
+                return;
+            }
+
+            if (status === 'approved') {
+                setWaitingMessage('Admitted by host. Joining meeting...');
+                return;
+            }
+
+            if (status === 'rejected') {
+                setJoiningMeeting(false);
+                setJoinPhase('lobby');
+                setError(message || 'Host declined your join request.');
+            }
+        });
+
+        socketRef.current.on('video-waiting-list', ({ waiting = [] }) => {
+            if (!Array.isArray(waiting)) return;
+            setWaitingRequests(waiting);
+        });
+
+        socketRef.current.on('meeting-status-updated', ({ meetingStarted: started }) => {
+            setMeetingStarted(!!started);
+            setIsStartingMeeting(false);
+            setChatMessages((prev) => [
+                ...prev,
+                {
+                    id: `meeting-status-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    author: 'System',
+                    text: started ? 'Meeting has started.' : 'Meeting is currently paused.',
+                    time: new Date(),
+                },
+            ]);
+        });
+
+        socketRef.current.on('waiting-room-requested', (request) => {
+            if (!request?.socketId) return;
+            setWaitingRequests((prev) => {
+                const exists = prev.some((item) => item.socketId === request.socketId);
+                if (exists) return prev;
+                return [...prev, request];
+            });
         });
 
         socketRef.current.on('user-connected', async ({ socketId }) => {
@@ -414,6 +554,36 @@ const VideoMeeting = () => {
             });
         });
 
+        socketRef.current.on('video-private-message', (message) => {
+            setChatMessages((prev) => {
+                if (prev.some((item) => item.id === message.id)) {
+                    return prev;
+                }
+                return [...prev, { ...message, isPrivate: true }];
+            });
+        });
+
+        socketRef.current.on('screen-share-permission-updated', ({ enabled }) => {
+            setScreenShareAllowed(!!enabled);
+            if (!enabled && isScreenSharing) {
+                stopScreenSharing();
+            }
+            setChatMessages((prev) => [
+                ...prev,
+                {
+                    id: `share-policy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    author: 'System',
+                    text: enabled ? 'Host enabled participant screen sharing.' : 'Host disabled participant screen sharing.',
+                    time: new Date(),
+                },
+            ]);
+        });
+
+        socketRef.current.on('removed-from-meeting', ({ message }) => {
+            alert(message || 'You have been removed from this meeting by the host.');
+            leaveMeeting();
+        });
+
         socketRef.current.on('video-reaction', ({ emoji, author, socketId }) => {
             setQuickReaction(emoji);
             setChatMessages((prev) => [
@@ -463,12 +633,71 @@ const VideoMeeting = () => {
             }
         });
 
+        socketRef.current.on('trigger-mute-single', () => {
+            if (localStream) {
+                const audioTrack = localStream.getAudioTracks()[0];
+                if (audioTrack && audioTrack.enabled) {
+                    audioTrack.enabled = false;
+                    setIsMuted(true);
+                }
+            }
+        });
+
         socketRef.current.on('meeting-ended-by-host', () => {
             alert('The host has ended this meeting across all participants.');
             if (localStream) {
                 localStream.getTracks().forEach((track) => track.stop());
             }
             navigate(`/conference/${conferenceId}`);
+        });
+    };
+
+    const startJoinMeeting = () => {
+        if (!stream) {
+            setError('Camera and microphone permissions are required to join the meeting.');
+            return;
+        }
+
+        const startSocketJoin = () => {
+            setError('');
+            setJoiningMeeting(true);
+            setConnectionState('connecting');
+
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketRef.current = null;
+            }
+
+            const socket = io(SOCKET_URL, { transports: ['websocket'] });
+            socketRef.current = socket;
+            setupSocketListeners(stream, isHost);
+        };
+
+        if (!requiresMeetingPassword) {
+            startSocketJoin();
+            return;
+        }
+
+        conferenceAPI
+            .authorizeMeetingJoin(conferenceId, meetingPassword)
+            .then(() => startSocketJoin())
+            .catch((err) => {
+                setError(err?.response?.data?.message || 'Invalid meeting password.');
+                setJoiningMeeting(false);
+            });
+    };
+
+    const approveWaitingParticipant = (socketId) => {
+        socketRef.current?.emit('approve-video-participant', {
+            roomId: conferenceId,
+            targetSocketId: socketId,
+        });
+    };
+
+    const rejectWaitingParticipant = (socketId) => {
+        socketRef.current?.emit('reject-video-participant', {
+            roomId: conferenceId,
+            targetSocketId: socketId,
         });
     };
 
@@ -545,6 +774,12 @@ const VideoMeeting = () => {
     }, []);
 
     const toggleScreenShare = async () => {
+        const canManageWaitingRoom = isHost || user?.role === 'admin';
+        if (!canManageWaitingRoom && !screenShareAllowed) {
+            setError('Host has disabled participant screen sharing for this meeting.');
+            return;
+        }
+
         if (!isScreenSharing) {
             try {
                 const screen = await navigator.mediaDevices.getDisplayMedia({ video: true });
@@ -596,10 +831,28 @@ const VideoMeeting = () => {
     };
 
     const leaveMeeting = () => {
+        if (socketRef.current) {
+            socketRef.current.disconnect();
+            socketRef.current = null;
+        }
         if (stream) {
             stream.getTracks().forEach((track) => track.stop());
         }
+        if (screenStream) {
+            screenStream.getTracks().forEach((track) => track.stop());
+        }
         navigate(`/conference/${conferenceId}`);
+    };
+
+    const cancelJoinRequest = () => {
+        if (socketRef.current) {
+            socketRef.current.disconnect();
+            socketRef.current = null;
+        }
+        setConnectionState('disconnected');
+        setJoinPhase('lobby');
+        setJoiningMeeting(false);
+        setWaitingMessage('Waiting for host approval.');
     };
 
     const endMeetingForAll = () => {
@@ -614,6 +867,18 @@ const VideoMeeting = () => {
     const muteAllParticipants = () => {
         socketRef.current?.emit('mute-all-participants', conferenceId);
         setShowMuteAllConfirm(false);
+    };
+
+    const muteSingleParticipant = (socketId) => {
+        socketRef.current?.emit('mute-single-participant', {
+            roomId: conferenceId,
+            targetSocketId: socketId,
+        });
+    };
+
+    const startMeetingForEveryone = () => {
+        setIsStartingMeeting(true);
+        socketRef.current?.emit('start-meeting', conferenceId);
     };
 
     const tryReconnect = () => {
@@ -638,12 +903,213 @@ const VideoMeeting = () => {
         const text = chatInput.trim();
         if (!text) return;
 
-        socketRef.current?.emit('video-chat-message', {
-            roomId: conferenceId,
-            text,
-        });
+        if (selectedPrivateTarget === 'all') {
+            socketRef.current?.emit('video-chat-message', {
+                roomId: conferenceId,
+                text,
+            });
+        } else {
+            socketRef.current?.emit('video-private-message', {
+                roomId: conferenceId,
+                targetSocketId: selectedPrivateTarget,
+                text,
+            });
+        }
         setChatInput('');
     };
+
+    const toggleParticipantScreenSharePermission = () => {
+        const next = !screenShareAllowed;
+        socketRef.current?.emit('set-screen-share-permission', {
+            roomId: conferenceId,
+            enabled: next,
+        });
+    };
+
+    const removeParticipant = (socketId) => {
+        socketRef.current?.emit('remove-participant', {
+            roomId: conferenceId,
+            targetSocketId: socketId,
+        });
+    };
+
+    const uploadRecordingBlob = async (blob) => {
+        const formData = new FormData();
+        formData.append('recording', blob, `${conferenceTitle.replace(/[^a-zA-Z0-9]+/g, '_')}_${Date.now()}.webm`);
+        formData.append('title', `${conferenceTitle} Recording`);
+        formData.append('durationSeconds', 0);
+
+        const response = await conferenceAPI.uploadRecording(conferenceId, formData);
+        const created = response.data?.recording;
+        if (created) {
+            setRecordings((prev) => [created, ...prev]);
+        }
+    };
+
+    const toggleRecording = async () => {
+        if (isRecording) {
+            mediaRecorderRef.current?.stop();
+            setIsRecording(false);
+            return;
+        }
+
+        if (!stream) {
+            setRecordingError('No media stream available to record.');
+            return;
+        }
+
+        try {
+            recordedChunksRef.current = [];
+            const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+            mediaRecorderRef.current = recorder;
+
+            recorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                    recordedChunksRef.current.push(event.data);
+                }
+            };
+
+            recorder.onstop = async () => {
+                try {
+                    const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+                    if (blob.size > 0) {
+                        await uploadRecordingBlob(blob);
+                        setRecordingError('');
+                    }
+                } catch (err) {
+                    setRecordingError(err?.response?.data?.message || err.message || 'Failed to upload recording.');
+                }
+            };
+
+            recorder.start(1000);
+            setIsRecording(true);
+            setRecordingError('');
+        } catch (err) {
+            setRecordingError(err.message || 'Recording is not supported in this browser.');
+        }
+    };
+
+    const canManageWaitingRoom = isHost || user?.role === 'admin';
+
+    if (joinPhase !== 'joined') {
+        const canJoinNow = !!stream && !joiningMeeting;
+        return (
+            <div className="video-lobby-page" ref={containerRef}>
+                <div className="video-lobby-card">
+                    <div className="video-lobby-main">
+                        <h1>{conferenceTitle}</h1>
+                        <p>Set your audio and video before joining the session.</p>
+
+                        <div className="video-lobby-preview">
+                            <video
+                                playsInline
+                                muted
+                                ref={localVideoRef}
+                                autoPlay
+                                className={`video-stream ${isVideoOff ? 'hidden' : ''}`}
+                            />
+                            {isVideoOff && (
+                                <div className="video-off-placeholder">
+                                    <FaVideoSlash size={44} />
+                                </div>
+                            )}
+                            <div className="video-label stage-label">
+                                <span>{user?.name || 'You'}{isHost ? ' (Host)' : ''}</span>
+                                <span className="media-status-icons">
+                                    {isMuted && <FaMicrophoneSlash className="status-icon" title="Muted" />}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="video-lobby-controls">
+                            <button
+                                type="button"
+                                className={`control-btn ${isMuted ? 'muted' : ''}`}
+                                onClick={toggleMute}
+                                title={isMuted ? 'Unmute' : 'Mute'}
+                            >
+                                {isMuted ? <FaMicrophoneSlash /> : <FaMicrophone />}
+                            </button>
+
+                            <button
+                                type="button"
+                                className={`control-btn ${isVideoOff ? 'muted' : ''}`}
+                                onClick={toggleVideo}
+                                title={isVideoOff ? 'Turn on Camera' : 'Turn off Camera'}
+                            >
+                                {isVideoOff ? <FaVideoSlash /> : <FaVideo />}
+                            </button>
+                        </div>
+
+                        {error && <p className="lobby-error">{error}</p>}
+
+                        {requiresMeetingPassword && (
+                            <div className="lobby-password-row">
+                                <label htmlFor="meeting-password">Meeting Password</label>
+                                <input
+                                    id="meeting-password"
+                                    type="password"
+                                    value={meetingPassword}
+                                    onChange={(event) => setMeetingPassword(event.target.value)}
+                                    placeholder="Enter meeting password"
+                                />
+                            </div>
+                        )}
+
+                        {joinPhase === 'waiting' ? (
+                            <div className="lobby-waiting-block">
+                                <p>{waitingMessage}</p>
+                                <button type="button" className="btn-leave" onClick={cancelJoinRequest}>
+                                    Cancel Request
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="video-lobby-actions">
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={startJoinMeeting}
+                                    disabled={!canJoinNow}
+                                >
+                                    {joiningMeeting ? 'Joining...' : canManageWaitingRoom ? 'Join Host Console' : 'Join Session'}
+                                </button>
+                                <button type="button" className="btn btn-outline" onClick={() => navigate(`/conference/${conferenceId}`)}>
+                                    Back to Details
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    <aside className="video-lobby-side">
+                        <h3>Session Details</h3>
+                        <p><strong>Meeting ID:</strong> {publicMeetingId}</p>
+                        <p><strong>Mode:</strong> {canManageWaitingRoom ? 'Host controls enabled' : 'Participant mode'}</p>
+                        <p><strong>Network:</strong> {connectionState}</p>
+
+                        {canManageWaitingRoom && (
+                            <div className="lobby-recordings">
+                                <h4>Recordings</h4>
+                                {recordings.length === 0 ? (
+                                    <p>No recordings uploaded yet.</p>
+                                ) : (
+                                    recordings.slice(0, 3).map((recording) => (
+                                        <a
+                                            key={recording._id}
+                                            href={`${SOCKET_URL}${recording.fileUrl}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            {recording.title}
+                                        </a>
+                                    ))
+                                )}
+                            </div>
+                        )}
+                    </aside>
+                </div>
+            </div>
+        );
+    }
 
     if (error) {
         return (
@@ -717,8 +1183,17 @@ const VideoMeeting = () => {
                     <span className="presenter-dot" />
                     <span>{topPresenterName}</span>
                 </div>
-                <div className="meeting-code">Room: {conferenceId.slice(0, 10)}</div>
+                <div className="meeting-code">Meeting ID: {publicMeetingId || conferenceId.slice(0, 10)}</div>
             </div>
+
+            {!meetingStarted && canManageWaitingRoom && (
+                <div className="meeting-start-banner">
+                    <p>The meeting is not started yet. Start it to admit participants from the waiting room.</p>
+                    <button type="button" onClick={startMeetingForEveryone} disabled={isStartingMeeting}>
+                        {isStartingMeeting ? 'Starting...' : 'Start Meeting'}
+                    </button>
+                </div>
+            )}
 
             <div className="meeting-layout">
                 <div className={`stage-area ${layoutMode === 'grid' ? 'stage-grid-mode' : ''}`}>
@@ -828,6 +1303,11 @@ const VideoMeeting = () => {
 
                 {isPanelOpen && (
                     <aside className="participants-panel" aria-label="Meeting side panel">
+                        <div className="panel-header">
+                            <h3>Meeting Workspace</h3>
+                            <p>{participantCount} participant{participantCount > 1 ? 's' : ''}</p>
+                        </div>
+
                         <div className="panel-tabs">
                             <button
                                 type="button"
@@ -850,10 +1330,47 @@ const VideoMeeting = () => {
                             >
                                 Agenda
                             </button>
+                            {canManageWaitingRoom && (
+                                <button
+                                    type="button"
+                                    className={`panel-tab ${activePanelTab === 'recordings' ? 'active' : ''}`}
+                                    onClick={() => setActivePanelTab('recordings')}
+                                >
+                                    Recordings
+                                </button>
+                            )}
                         </div>
 
                         {activePanelTab === 'participants' && (
                             <div className="participants-list">
+                                {canManageWaitingRoom && (
+                                    <div className="waiting-room-card">
+                                        <div className="waiting-room-head">
+                                            <h4>Waiting Room</h4>
+                                            <span>{waitingRequests.length}</span>
+                                        </div>
+                                        {waitingRequests.length === 0 ? (
+                                            <p className="waiting-empty">No pending requests.</p>
+                                        ) : (
+                                            waitingRequests.map((request) => (
+                                                <div key={request.socketId} className="waiting-item">
+                                                    <div>
+                                                        <strong>{request.userName || 'Participant'}</strong>
+                                                    </div>
+                                                    <div className="waiting-actions">
+                                                        <button type="button" onClick={() => approveWaitingParticipant(request.socketId)}>
+                                                            Admit
+                                                        </button>
+                                                        <button type="button" className="decline" onClick={() => rejectWaitingParticipant(request.socketId)}>
+                                                            Decline
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+
                                 {participants.map((participant) => (
                                     <div key={participant.id} className="participants-item">
                                         <div className="participants-name-wrap">
@@ -864,6 +1381,24 @@ const VideoMeeting = () => {
                                             {participant.isHandRaised && <span title="Hand raised">✋</span>}
                                             {participant.isMuted && <FaMicrophoneSlash title="Muted" />}
                                             {participant.isVideoOff && <FaVideoSlash title="Camera off" />}
+                                            {canManageWaitingRoom && !participant.isLocal && (
+                                                <button
+                                                    type="button"
+                                                    className="participant-mute-btn"
+                                                    onClick={() => muteSingleParticipant(participant.id)}
+                                                >
+                                                    Mute
+                                                </button>
+                                            )}
+                                            {canManageWaitingRoom && !participant.isLocal && (
+                                                <button
+                                                    type="button"
+                                                    className="participant-remove-btn"
+                                                    onClick={() => removeParticipant(participant.id)}
+                                                >
+                                                    Remove
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -876,7 +1411,7 @@ const VideoMeeting = () => {
                                     {chatMessages.map((message) => (
                                         <div key={message.id} className="meeting-chat-item">
                                             <div className="meeting-chat-head">
-                                                <strong>{message.author}</strong>
+                                                <strong>{message.author} {message.isPrivate ? '(Private)' : ''}</strong>
                                                 <span>{new Date(message.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                             </div>
                                             <p>{message.text}</p>
@@ -886,6 +1421,20 @@ const VideoMeeting = () => {
                                 </div>
 
                                 <div className="meeting-chat-input-row">
+                                    <select
+                                        value={selectedPrivateTarget}
+                                        onChange={(event) => setSelectedPrivateTarget(event.target.value)}
+                                        className="private-target-select"
+                                    >
+                                        <option value="all">Everyone</option>
+                                        {participants
+                                            .filter((participant) => !participant.isLocal)
+                                            .map((participant) => (
+                                                <option key={participant.id} value={participant.id}>
+                                                    {participant.name}
+                                                </option>
+                                            ))}
+                                    </select>
                                     <input
                                         value={chatInput}
                                         onChange={(event) => setChatInput(event.target.value)}
@@ -914,6 +1463,24 @@ const VideoMeeting = () => {
                                 )}
                             </div>
                         )}
+
+                        {activePanelTab === 'recordings' && canManageWaitingRoom && (
+                            <div className="recordings-panel-list">
+                                {recordings.length === 0 ? (
+                                    <p className="empty-panel-note">No recordings uploaded yet.</p>
+                                ) : (
+                                    recordings.map((recording) => (
+                                        <div key={recording._id} className="recording-panel-item">
+                                            <strong>{recording.title}</strong>
+                                            <video controls src={`${SOCKET_URL}${recording.fileUrl}`} />
+                                            <a href={`${SOCKET_URL}${recording.fileUrl}`} target="_blank" rel="noreferrer">
+                                                Open recording
+                                            </a>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
                     </aside>
                 )}
             </div>
@@ -921,114 +1488,144 @@ const VideoMeeting = () => {
             {quickReaction && <div className="reaction-toast">{quickReaction}</div>}
 
             <div className="video-controls">
-                <button
-                    className={`control-btn ${isMuted ? 'muted' : ''}`}
-                    onClick={toggleMute}
-                    title={isMuted ? 'Unmute' : 'Mute'}
-                    aria-label={isMuted ? 'Unmute microphone' : 'Mute microphone'}
-                >
-                    {isMuted ? <FaMicrophoneSlash /> : <FaMicrophone />}
-                </button>
-
-                <button
-                    className={`control-btn ${isVideoOff ? 'muted' : ''}`}
-                    onClick={toggleVideo}
-                    title={isVideoOff ? 'Turn on Camera' : 'Turn off Camera'}
-                    aria-label={isVideoOff ? 'Turn on camera' : 'Turn off camera'}
-                >
-                    {isVideoOff ? <FaVideoSlash /> : <FaVideo />}
-                </button>
-
-                <button
-                    className={`control-btn ${isScreenSharing ? 'sharing' : ''}`}
-                    onClick={toggleScreenShare}
-                    title={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
-                    aria-label={isScreenSharing ? 'Stop screen sharing' : 'Share screen'}
-                >
-                    {isScreenSharing ? <FaStopCircle /> : <FaDesktop />}
-                </button>
-
-                <button
-                    className="control-btn"
-                    onClick={toggleFullscreen}
-                    title={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
-                    aria-label={isFullscreen ? 'Exit full screen' : 'Enter full screen'}
-                >
-                    {isFullscreen ? <FaCompress /> : <FaExpand />}
-                </button>
-
-                <button
-                    className={`control-btn ${layoutMode === 'grid' ? 'sharing' : ''}`}
-                    onClick={() => setLayoutMode((prev) => (prev === 'focus' ? 'grid' : 'focus'))}
-                    title={layoutMode === 'grid' ? 'Switch to Focus mode' : 'Switch to Gallery mode'}
-                    aria-label={layoutMode === 'grid' ? 'Switch to focus layout' : 'Switch to gallery layout'}
-                >
-                    {layoutMode === 'grid' ? <FaColumns /> : <FaTh />}
-                </button>
-
-                <button
-                    className={`control-btn ${isHandRaised ? 'host-action-btn' : ''}`}
-                    onClick={() => {
-                        const next = !isHandRaised;
-                        setIsHandRaised(next);
-                        socketRef.current?.emit('user-hand-status', {
-                            roomId: conferenceId,
-                            isHandRaised: next,
-                        });
-                    }}
-                    title={isHandRaised ? 'Lower hand' : 'Raise hand'}
-                    aria-label={isHandRaised ? 'Lower hand' : 'Raise hand'}
-                >
-                    <FaRegHandPaper />
-                </button>
-
-                <button
-                    className="control-btn"
-                    onClick={() => sendReaction('👏')}
-                    title="Send applause"
-                    aria-label="Send applause reaction"
-                >
-                    <FaRegSmile />
-                </button>
-
-                <button
-                    className={`control-btn ${isPanelOpen ? 'sharing' : ''}`}
-                    onClick={() => {
-                        setIsPanelOpen((prev) => !prev);
-                        if (!isPanelOpen) setActivePanelTab('participants');
-                    }}
-                    title={isPanelOpen ? 'Hide side panel' : 'Show side panel'}
-                    aria-label={isPanelOpen ? 'Hide side panel' : 'Show side panel'}
-                >
-                    {activePanelTab === 'chat' ? <FaComments /> : <FaUsers />}
-                </button>
-
-                {isHost && (
+                <div className="controls-group controls-group-left">
                     <button
-                        className="control-btn host-action-btn"
-                        onClick={() => setShowMuteAllConfirm(true)}
-                        title="Mute All Participants"
-                        aria-label="Mute all participants"
+                        className={`control-btn ${isPanelOpen ? 'sharing' : ''}`}
+                        onClick={() => {
+                            setIsPanelOpen((prev) => !prev);
+                            if (!isPanelOpen) setActivePanelTab('participants');
+                        }}
+                        title={isPanelOpen ? 'Hide side panel' : 'Show side panel'}
+                        aria-label={isPanelOpen ? 'Hide side panel' : 'Show side panel'}
                     >
-                        <FaUsers />
+                        {activePanelTab === 'chat' ? <FaComments /> : <FaUsers />}
                     </button>
-                )}
 
-                <button className="control-btn leave-btn" onClick={leaveMeeting} title="Leave Meeting" aria-label="Leave meeting">
-                    <FaPhoneSlash /> <span>Leave</span>
-                </button>
-
-                {isHost && (
                     <button
-                        className="control-btn leave-btn end-all-btn"
-                        onClick={() => setShowEndMeetingConfirm(true)}
-                        title="End Meeting for All"
-                        aria-label="End meeting for all participants"
+                        className={`control-btn ${layoutMode === 'grid' ? 'sharing' : ''}`}
+                        onClick={() => setLayoutMode((prev) => (prev === 'focus' ? 'grid' : 'focus'))}
+                        title={layoutMode === 'grid' ? 'Switch to Focus mode' : 'Switch to Gallery mode'}
+                        aria-label={layoutMode === 'grid' ? 'Switch to focus layout' : 'Switch to gallery layout'}
                     >
-                        <FaPowerOff /> <span>End for All</span>
+                        {layoutMode === 'grid' ? <FaColumns /> : <FaTh />}
                     </button>
-                )}
+                </div>
+
+                <div className="controls-group controls-group-center">
+                    <button
+                        className={`control-btn ${isMuted ? 'muted' : ''}`}
+                        onClick={toggleMute}
+                        title={isMuted ? 'Unmute' : 'Mute'}
+                        aria-label={isMuted ? 'Unmute microphone' : 'Mute microphone'}
+                    >
+                        {isMuted ? <FaMicrophoneSlash /> : <FaMicrophone />}
+                    </button>
+
+                    <button
+                        className={`control-btn ${isVideoOff ? 'muted' : ''}`}
+                        onClick={toggleVideo}
+                        title={isVideoOff ? 'Turn on Camera' : 'Turn off Camera'}
+                        aria-label={isVideoOff ? 'Turn on camera' : 'Turn off camera'}
+                    >
+                        {isVideoOff ? <FaVideoSlash /> : <FaVideo />}
+                    </button>
+
+                    <button
+                        className={`control-btn ${isScreenSharing ? 'sharing' : ''}`}
+                        onClick={toggleScreenShare}
+                        title={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
+                        aria-label={isScreenSharing ? 'Stop screen sharing' : 'Share screen'}
+                    >
+                        {isScreenSharing ? <FaStopCircle /> : <FaDesktop />}
+                    </button>
+
+                    <button
+                        className={`control-btn ${isHandRaised ? 'host-action-btn' : ''}`}
+                        onClick={() => {
+                            const next = !isHandRaised;
+                            setIsHandRaised(next);
+                            socketRef.current?.emit('user-hand-status', {
+                                roomId: conferenceId,
+                                isHandRaised: next,
+                            });
+                        }}
+                        title={isHandRaised ? 'Lower hand' : 'Raise hand'}
+                        aria-label={isHandRaised ? 'Lower hand' : 'Raise hand'}
+                    >
+                        <FaRegHandPaper />
+                    </button>
+
+                    <button
+                        className="control-btn"
+                        onClick={() => sendReaction('👏')}
+                        title="Send applause"
+                        aria-label="Send applause reaction"
+                    >
+                        <FaRegSmile />
+                    </button>
+
+                    <button
+                        className="control-btn"
+                        onClick={toggleFullscreen}
+                        title={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+                        aria-label={isFullscreen ? 'Exit full screen' : 'Enter full screen'}
+                    >
+                        {isFullscreen ? <FaCompress /> : <FaExpand />}
+                    </button>
+                </div>
+
+                <div className="controls-group controls-group-right">
+                    {canManageWaitingRoom && (
+                        <button
+                            className={`control-btn ${screenShareAllowed ? 'sharing' : 'muted'}`}
+                            onClick={toggleParticipantScreenSharePermission}
+                            title={screenShareAllowed ? 'Disable participant screen share' : 'Enable participant screen share'}
+                            aria-label={screenShareAllowed ? 'Disable participant screen share' : 'Enable participant screen share'}
+                        >
+                            <FaDesktop />
+                        </button>
+                    )}
+
+                    {canManageWaitingRoom && (
+                        <button
+                            className={`control-btn ${isRecording ? 'muted' : ''}`}
+                            onClick={toggleRecording}
+                            title={isRecording ? 'Stop recording' : 'Start recording'}
+                            aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+                        >
+                            <FaStopCircle />
+                        </button>
+                    )}
+
+                    {isHost && (
+                        <button
+                            className="control-btn host-action-btn"
+                            onClick={() => setShowMuteAllConfirm(true)}
+                            title="Mute All Participants"
+                            aria-label="Mute all participants"
+                        >
+                            <FaUsers />
+                        </button>
+                    )}
+
+                    <button className="control-btn leave-btn" onClick={leaveMeeting} title="Leave Meeting" aria-label="Leave meeting">
+                        <FaPhoneSlash /> <span>Leave</span>
+                    </button>
+
+                    {isHost && (
+                        <button
+                            className="control-btn leave-btn end-all-btn"
+                            onClick={() => setShowEndMeetingConfirm(true)}
+                            title="End Meeting for All"
+                            aria-label="End meeting for all participants"
+                        >
+                            <FaPowerOff /> <span>End for All</span>
+                        </button>
+                    )}
+                </div>
             </div>
+
+            {recordingError && <div className="recording-error-banner">{recordingError}</div>}
 
             {showEndMeetingConfirm && (
                 <div className="meeting-confirm-overlay" role="dialog" aria-modal="true" aria-label="Confirm end meeting">

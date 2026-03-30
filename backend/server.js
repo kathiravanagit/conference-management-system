@@ -44,6 +44,7 @@ app.use(attachRequestContext);
 app.use(logRequestLifecycle);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static('uploads'));
+app.use('/uploads', express.static('uploads'));
 
 // Connect to MongoDB
 connectDB();

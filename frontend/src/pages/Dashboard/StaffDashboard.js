@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   certificateAPI,
   qaAPI,
@@ -14,7 +14,6 @@ import { useAuth } from '../../context/AuthContext';
 import './StaffDashboard.css';
 
 const StaffDashboard = () => {
-  const navigate = useNavigate();
   const [dashboard, setDashboard] = useState(null);
   const [conferences, setConferences] = useState([]);
   const [upcomingConferences, setUpcomingConferences] = useState([]);
@@ -79,6 +78,8 @@ const StaffDashboard = () => {
     maxAttendees: 500,
     enableCertificates: false,
     enableQA: true,
+    meetingPassword: '',
+    allowParticipantScreenShare: true,
     agenda: '',          // comma-separated: "9:00 Opening, 10:00 Keynote"
   });
   const [uploadConferenceId, setUploadConferenceId] = useState('');
@@ -188,6 +189,8 @@ const StaffDashboard = () => {
         maxAttendees: conferenceForm.maxAttendees,
         enableCertificates: conferenceForm.enableCertificates,
         enableQA: conferenceForm.enableQA,
+        meetingPassword: conferenceForm.meetingPassword || undefined,
+        allowParticipantScreenShare: conferenceForm.allowParticipantScreenShare,
         schedule: agendaItems,
         speaker: {
           name: conferenceForm.speakerName,
@@ -198,8 +201,7 @@ const StaffDashboard = () => {
         },
       };
 
-      const response = await conferenceAPI.create(payload);
-      const createdConference = response?.data?.conference;
+      await conferenceAPI.create(payload);
 
       setSuccess('Conference created successfully.');
       setConferenceForm({
@@ -217,13 +219,12 @@ const StaffDashboard = () => {
         maxAttendees: 500,
         enableCertificates: false,
         enableQA: true,
+        meetingPassword: '',
+        allowParticipantScreenShare: true,
         agenda: '',
       });
       await loadDashboard();
-
-      if (createdConference?._id) {
-        navigate(`/conference/${createdConference._id}/meeting`);
-      }
+      setSuccess('Conference created successfully. Participants can join from the Join button when the session starts.');
     } catch (err) {
       setError(handleApiError(err));
     }
@@ -568,6 +569,17 @@ const StaffDashboard = () => {
                 }
               />
 
+              <input
+                type="text"
+                placeholder="Meeting password (required for participants)"
+                value={conferenceForm.meetingPassword}
+                onChange={(event) =>
+                  setConferenceForm((prev) => ({ ...prev, meetingPassword: event.target.value }))
+                }
+                required
+                minLength={4}
+              />
+
               {/* Agenda / Schedule */}
               <div style={{ marginBottom: '0.5rem' }}>
                 <label style={{ fontSize: '0.82rem', color: 'var(--ink-600)', display: 'block', marginBottom: '0.3rem' }}>
@@ -604,6 +616,16 @@ const StaffDashboard = () => {
                     }
                   />
                   <span>Enable Q&A</span>
+                </label>
+                <label className="toggle-label">
+                  <input
+                    type="checkbox"
+                    checked={conferenceForm.allowParticipantScreenShare}
+                    onChange={(event) =>
+                      setConferenceForm((prev) => ({ ...prev, allowParticipantScreenShare: event.target.checked }))
+                    }
+                  />
+                  <span>Allow participants to share screen</span>
                 </label>
               </div>
 
