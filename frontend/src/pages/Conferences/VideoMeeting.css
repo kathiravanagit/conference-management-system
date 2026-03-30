@@ -307,6 +307,14 @@
   min-height: 0;
 }
 
+.meeting-layout.panel-closed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.meeting-layout.panel-open {
+  grid-template-columns: minmax(0, 1fr) 310px;
+}
+
 .stage-area {
   min-height: 0;
   display: grid;
@@ -339,6 +347,28 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.tile-pin-indicator {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  color: #c9d6ef;
+  background: rgba(10, 16, 28, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 2;
+}
+
+.tile-pin-indicator.active {
+  color: #ffd166;
+  border-color: rgba(255, 209, 102, 0.68);
+  background: rgba(122, 89, 18, 0.32);
 }
 
 .stage-tile {
@@ -453,6 +483,19 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  animation: panelSlideIn 0.22s ease;
+}
+
+@keyframes panelSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .panel-header {
@@ -629,6 +672,25 @@
   font-size: 0.68rem;
   padding: 0.16rem 0.42rem;
   cursor: pointer;
+}
+
+.participant-pin-btn {
+  border: 1px solid rgba(169, 186, 216, 0.45);
+  background: rgba(41, 56, 82, 0.45);
+  color: #d7e3fb;
+  border-radius: 7px;
+  font-size: 0.68rem;
+  width: 24px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.participant-pin-btn.active {
+  border-color: rgba(255, 209, 102, 0.65);
+  color: #ffd166;
+  background: rgba(117, 85, 18, 0.35);
 }
 
 .meeting-chat-wrap {

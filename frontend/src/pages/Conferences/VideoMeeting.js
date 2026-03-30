@@ -21,6 +21,7 @@ import {
     FaTh,
     FaColumns,
     FaComments,
+    FaThumbtack,
 } from 'react-icons/fa';
 import './VideoMeeting.css';
 
@@ -62,7 +63,7 @@ const VideoMeeting = () => {
     const [meetingStarted, setMeetingStarted] = useState(false);
     const [isStartingMeeting, setIsStartingMeeting] = useState(false);
 
-    const [isPanelOpen, setIsPanelOpen] = useState(true);
+    const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [activePanelTab, setActivePanelTab] = useState('participants');
     const [layoutMode, setLayoutMode] = useState('focus');
     const [isHandRaised, setIsHandRaised] = useState(false);
@@ -178,13 +179,8 @@ const VideoMeeting = () => {
     }, [stream, screenStream, isScreenSharing]);
 
     useEffect(() => {
-        const peerIds = Object.keys(peers);
-        if (activeSpeakerSocketId && !peerIds.includes(activeSpeakerSocketId)) {
-            setActiveSpeakerSocketId(peerIds[0] || null);
-            return;
-        }
-        if (!activeSpeakerSocketId && peerIds.length > 0) {
-            setActiveSpeakerSocketId(peerIds[0]);
+        if (activeSpeakerSocketId && !peers[activeSpeakerSocketId]) {
+            setActiveSpeakerSocketId(null);
         }
     }, [peers, activeSpeakerSocketId]);
 
@@ -198,61 +194,6 @@ const VideoMeeting = () => {
         const timeout = setTimeout(() => setQuickReaction(''), 1800);
         return () => clearTimeout(timeout);
     }, [quickReaction]);
-
-    useEffect(() => {
-        const streams = [{ socketId: null, stream }, ...Object.entries(peers).map(([socketId, s]) => ({ socketId, stream: s }))]
-            .filter((entry) => entry.stream && entry.stream.getAudioTracks().length > 0);
-
-        if (streams.length === 0) return undefined;
-
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return undefined;
-
-        const audioContext = new AudioCtx();
-        const analysers = streams.map(({ socketId, stream: mediaStream }) => {
-            const source = audioContext.createMediaStreamSource(mediaStream);
-            const analyser = audioContext.createAnalyser();
-            analyser.fftSize = 512;
-            source.connect(analyser);
-            return { socketId, analyser, buffer: new Uint8Array(analyser.frequencyBinCount), source };
-        });
-
-        const interval = setInterval(() => {
-            let loudest = { socketId: activeSpeakerSocketId, level: 0 };
-
-            analysers.forEach((entry) => {
-                entry.analyser.getByteTimeDomainData(entry.buffer);
-                let sum = 0;
-                for (let i = 0; i < entry.buffer.length; i += 1) {
-                    const centered = (entry.buffer[i] - 128) / 128;
-                    sum += centered * centered;
-                }
-                const rms = Math.sqrt(sum / entry.buffer.length);
-                if (rms > loudest.level) {
-                    loudest = { socketId: entry.socketId, level: rms };
-                }
-            });
-
-            if (loudest.level > 0.035 && loudest.socketId !== activeSpeakerSocketId) {
-                setActiveSpeakerSocketId(loudest.socketId);
-            }
-            if (loudest.level <= 0.035) {
-                setActiveSpeakerSocketId(null);
-            }
-        }, 700);
-
-        return () => {
-            clearInterval(interval);
-            analysers.forEach((entry) => {
-                try {
-                    entry.source.disconnect();
-                } catch (err) {
-                    // ignore disconnect errors from already-closed contexts
-                }
-            });
-            audioContext.close().catch(() => undefined);
-        };
-    }, [stream, peers, activeSpeakerSocketId]);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -933,6 +874,15 @@ const VideoMeeting = () => {
         });
     };
 
+    const togglePinParticipant = (participantId) => {
+        if (participantId === 'local') {
+            setActiveSpeakerSocketId(null);
+            return;
+        }
+
+        setActiveSpeakerSocketId((prev) => (prev === participantId ? null : participantId));
+    };
+
     const uploadRecordingBlob = async (blob) => {
         const formData = new FormData();
         formData.append('recording', blob, `${conferenceTitle.replace(/[^a-zA-Z0-9]+/g, '_')}_${Date.now()}.webm`);
@@ -1195,7 +1145,7 @@ const VideoMeeting = () => {
                 </div>
             )}
 
-            <div className="meeting-layout">
+            <div className={`meeting-layout ${isPanelOpen ? 'panel-open' : 'panel-closed'}`}>
                 <div className={`stage-area ${layoutMode === 'grid' ? 'stage-grid-mode' : ''}`}>
                     <div className="stage-video-wrap">
                         {layoutMode === 'grid' ? (
@@ -1274,6 +1224,7 @@ const VideoMeeting = () => {
                                         isVideoOff={peersInfo[socketId]?.isVideoOff}
                                         raisedHand={peersInfo[socketId]?.isHandRaised}
                                         variant="filmstrip"
+                                        pinned={activeSpeakerSocketId === socketId}
                                     />
                                 </button>
                             ))}
@@ -1294,6 +1245,7 @@ const VideoMeeting = () => {
                                         raisedHand={isHandRaised}
                                         muted
                                         variant="filmstrip"
+                                        pinned={activeSpeakerSocketId === null}
                                     />
                                 </button>
                             )}
@@ -1381,6 +1333,13 @@ const VideoMeeting = () => {
                                             {participant.isHandRaised && <span title="Hand raised">✋</span>}
                                             {participant.isMuted && <FaMicrophoneSlash title="Muted" />}
                                             {participant.isVideoOff && <FaVideoSlash title="Camera off" />}
+                                            <button
+                                                type="button"
+                                                className={`participant-pin-btn ${activeSpeakerSocketId === participant.id || (participant.id === 'local' && activeSpeakerSocketId === null) ? 'active' : ''}`}
+                                                onClick={() => togglePinParticipant(participant.id)}
+                                            >
+                                                <FaThumbtack />
+                                            </button>
                                             {canManageWaitingRoom && !participant.isLocal && (
                                                 <button
                                                     type="button"
@@ -1680,7 +1639,7 @@ const VideoMeeting = () => {
     );
 };
 
-const VideoPlayer = ({ stream, label, isHost, isMuted, isVideoOff, raisedHand, variant = 'grid', muted = false }) => {
+const VideoPlayer = ({ stream, label, isHost, isMuted, isVideoOff, raisedHand, variant = 'grid', muted = false, pinned = false }) => {
     const ref = useRef();
 
     useEffect(() => {
@@ -1691,6 +1650,11 @@ const VideoPlayer = ({ stream, label, isHost, isMuted, isVideoOff, raisedHand, v
 
     return (
         <div className={`video-container ${variant === 'stage' ? 'stage-tile' : ''} ${variant === 'filmstrip' ? 'filmstrip-tile' : ''}`}>
+            {variant === 'filmstrip' && (
+                <span className={`tile-pin-indicator ${pinned ? 'active' : ''}`} title={pinned ? 'Pinned to stage' : 'Tap tile to pin'}>
+                    <FaThumbtack />
+                </span>
+            )}
             <video playsInline autoPlay muted={muted} ref={ref} className={`video-stream ${isVideoOff ? 'hidden' : ''}`} />
             {isVideoOff && (
                 <div className="video-off-placeholder">
