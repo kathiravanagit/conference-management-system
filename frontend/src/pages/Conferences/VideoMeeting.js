@@ -1208,7 +1208,26 @@ const VideoMeeting = () => {
 
                     {layoutMode !== 'grid' && (
                         <div className="filmstrip-row" aria-label="Participant video strip">
-                            {!stageIsRemote && peersArray.map(([socketId, peerStream]) => (
+                            <button
+                                className="filmstrip-tile-btn"
+                                type="button"
+                                onClick={() => setActiveSpeakerSocketId(null)}
+                                title="Pin yourself to stage"
+                            >
+                                <VideoPlayer
+                                    stream={stream}
+                                    label={`You${isHost ? ' (Host)' : ''}`}
+                                    isHost={isHost}
+                                    isMuted={isMuted}
+                                    isVideoOff={isVideoOff}
+                                    raisedHand={isHandRaised}
+                                    muted
+                                    variant="filmstrip"
+                                    pinned={activeSpeakerSocketId === null}
+                                />
+                            </button>
+
+                            {peersArray.map(([socketId, peerStream]) => (
                                 <button
                                     key={socketId}
                                     className="filmstrip-tile-btn"
@@ -1228,27 +1247,6 @@ const VideoMeeting = () => {
                                     />
                                 </button>
                             ))}
-
-                            {stageIsRemote && (
-                                <button
-                                    className="filmstrip-tile-btn"
-                                    type="button"
-                                    onClick={() => setActiveSpeakerSocketId(null)}
-                                    title="Pin yourself to stage"
-                                >
-                                    <VideoPlayer
-                                        stream={stream}
-                                        label={`You${isHost ? ' (Host)' : ''}`}
-                                        isHost={isHost}
-                                        isMuted={isMuted}
-                                        isVideoOff={isVideoOff}
-                                        raisedHand={isHandRaised}
-                                        muted
-                                        variant="filmstrip"
-                                        pinned={activeSpeakerSocketId === null}
-                                    />
-                                </button>
-                            )}
                         </div>
                     )}
                 </div>
