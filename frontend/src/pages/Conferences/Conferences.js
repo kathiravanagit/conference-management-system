@@ -28,20 +28,14 @@ const Conferences = () => {
   const fetchConferences = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await conferenceAPI.getAll({
-        department: filter.department === 'ALL' ? undefined : filter.department,
-        status: filter.status === 'all' ? undefined : filter.status,
-      });
+      // Always fetch all conferences and filter on client so visibility is consistent across roles.
+      const response = await conferenceAPI.getAll({ status: 'all' });
       setConferences(response.data.conferences || []);
       setError('');
-      if (filter.status === 'completed' || filter.status === 'all') {
-        try {
-          const completedRes = await conferenceAPI.getCompleted();
-          setCompletedConferences(completedRes.data.completedConferences || []);
-        } catch (err) {
-          // Ignore completed fetch error
-        }
-      } else {
+      try {
+        const completedRes = await conferenceAPI.getCompleted();
+        setCompletedConferences(completedRes.data.completedConferences || []);
+      } catch (err) {
         setCompletedConferences([]);
       }
     } catch (err) {
@@ -49,7 +43,7 @@ const Conferences = () => {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, []);
 
   const fetchMyRegistrations = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -86,20 +80,17 @@ const Conferences = () => {
   const mappedCompleted = completedConferences.map(cc => ({ ...cc, _id: cc.originalId || cc._id }));
   const mergedConferences = [...conferences, ...mappedCompleted.filter(cc => !conferences.some(c => c._id === cc._id))];
 
-  // Restrict visibility based on user role
-  let visibleConferences = mergedConferences;
-  if (user) {
-    if (user.role === 'student') {
-      // Students only see conferences for their department or for ALL departments
-      visibleConferences = visibleConferences.filter(c => c.department === user.department || c.department === 'ALL');
-    }
-    // staff and admin can see ALL conferences (isCreator only controls action buttons, not visibility)
-  }
+  // Show all conferences to all authenticated users; registration/join permissions are handled separately.
+  const visibleConferences = mergedConferences;
 
-  const ongoingConferences = visibleConferences.filter((c) => c.status === 'ongoing');
-  const upcomingConferences = visibleConferences.filter((c) => c.status === 'upcoming');
-  const completedConfs = visibleConferences.filter((c) => c.status === 'completed');
-  const otherConferences = visibleConferences.filter(
+  const departmentFilteredConferences = visibleConferences.filter(
+    (c) => filter.department === 'ALL' || c.department === filter.department || c.department === 'ALL'
+  );
+
+  const ongoingConferences = departmentFilteredConferences.filter((c) => c.status === 'ongoing');
+  const upcomingConferences = departmentFilteredConferences.filter((c) => c.status === 'upcoming');
+  const completedConfs = departmentFilteredConferences.filter((c) => c.status === 'completed');
+  const otherConferences = departmentFilteredConferences.filter(
     (c) => c.status !== 'ongoing' && c.status !== 'upcoming' && c.status !== 'completed'
   );
 
@@ -239,7 +230,7 @@ const Conferences = () => {
                   </div>
                 )}
                 {renderSection('Other Conferences', applySearch(otherConferences), '')}
-                {applySearch(visibleConferences).length === 0 && (
+                {applySearch(departmentFilteredConferences).length === 0 && (
                   <EmptyState status="matching" />
                 )}
               </>
@@ -264,11 +255,11 @@ const Conferences = () => {
               </div>
             ) : (
               <>
-                {applySearch(visibleConferences).filter(c => c.status === filter.status).length === 0 ? (
+                {applySearch(departmentFilteredConferences).filter(c => c.status === filter.status).length === 0 ? (
                   <EmptyState status={filter.status} />
                 ) : (
                   <div className="conferences-grid">
-                    {applySearch(visibleConferences).filter(c => c.status === filter.status).map((conference) => (
+                    {applySearch(departmentFilteredConferences).filter(c => c.status === filter.status).map((conference) => (
                       <ConferenceCard
                         key={conference._id}
                         conference={conference}

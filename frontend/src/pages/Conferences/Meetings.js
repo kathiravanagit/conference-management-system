@@ -41,17 +41,8 @@ const Meetings = () => {
   }, [isAuthenticated, canManageEvents]);
 
   const visibleConferences = useMemo(() => {
-    let filtered = conferences.filter((conference) => ['ongoing', 'upcoming'].includes(conference.status));
-    if (!canManageEvents && user?.department) {
-      // Show conferences for the student's department OR for ALL departments
-      filtered = filtered.filter(
-        (conference) =>
-          conference.department === user.department ||
-          conference.department === 'ALL'
-      );
-    }
-    return filtered;
-  }, [conferences, canManageEvents, user]);
+    return conferences.filter((conference) => ['ongoing', 'upcoming'].includes(conference.status));
+  }, [conferences]);
 
   const ongoingConferences = useMemo(() => visibleConferences.filter((conference) => conference.status === 'ongoing'), [visibleConferences]);
   const upcomingConferences = useMemo(() => visibleConferences.filter((conference) => conference.status === 'upcoming'), [visibleConferences]);

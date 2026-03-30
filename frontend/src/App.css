@@ -35,12 +35,12 @@
 .btn-primary {
   background: linear-gradient(135deg, var(--btn-primary-bg-start), var(--btn-primary-bg-end));
   color: var(--btn-primary-text);
-  box-shadow: 0 12px 24px rgba(27, 177, 138, 0.25);
+  box-shadow: 0 6px 12px rgba(12, 21, 38, 0.1);
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 28px rgba(27, 177, 138, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 14px rgba(12, 21, 38, 0.14);
 }
 
 .btn-outline {
