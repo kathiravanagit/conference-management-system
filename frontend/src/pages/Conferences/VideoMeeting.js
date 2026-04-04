@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import io from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext';
 import { conferenceAPI } from '../../utils/api';
@@ -22,6 +22,8 @@ import {
     FaColumns,
     FaComments,
     FaThumbtack,
+    FaChevronDown,
+    FaChevronUp,
 } from 'react-icons/fa';
 import './VideoMeeting.css';
 
@@ -32,6 +34,7 @@ const VideoMeeting = () => {
     const { id: conferenceId } = useParams();
     const { user, isAuthenticated } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [stream, setStream] = useState(null);
     const [isMuted, setIsMuted] = useState(false);
@@ -68,6 +71,8 @@ const VideoMeeting = () => {
     const [layoutMode, setLayoutMode] = useState('focus');
     const [isHandRaised, setIsHandRaised] = useState(false);
     const [quickReaction, setQuickReaction] = useState('');
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [showMoreEmojis, setShowMoreEmojis] = useState(false);
     const [connectionState, setConnectionState] = useState('disconnected');
     const [showEndMeetingConfirm, setShowEndMeetingConfirm] = useState(false);
     const [showMuteAllConfirm, setShowMuteAllConfirm] = useState(false);
@@ -88,12 +93,24 @@ const VideoMeeting = () => {
     const streamRef = useRef(null);
     const containerRef = useRef();
     const chatEndRef = useRef();
+    const emojiPickerRef = useRef();
     const mediaRecorderRef = useRef(null);
     const recordedChunksRef = useRef([]);
+
+    const quickEmojiOptions = ['👏', '👍', '🔥', '🎉', '❤️'];
+    const extraEmojiOptions = ['😂', '😮', '🙌', '💯', '✅', '🤝'];
 
     useEffect(() => {
         streamRef.current = stream;
     }, [stream]);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const invitePassword = params.get('pwd') || params.get('password') || '';
+        if (invitePassword) {
+            setMeetingPassword(invitePassword);
+        }
+    }, [location.search]);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -194,6 +211,18 @@ const VideoMeeting = () => {
         const timeout = setTimeout(() => setQuickReaction(''), 1800);
         return () => clearTimeout(timeout);
     }, [quickReaction]);
+
+    useEffect(() => {
+        const handleOutsideEmojiPicker = (event) => {
+            if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+                setShowEmojiPicker(false);
+                setShowMoreEmojis(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleOutsideEmojiPicker);
+        return () => document.removeEventListener('mousedown', handleOutsideEmojiPicker);
+    }, []);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -910,7 +939,20 @@ const VideoMeeting = () => {
 
         try {
             recordedChunksRef.current = [];
-            const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+            const recordingMimeTypes = [
+                'video/webm;codecs=vp9,opus',
+                'video/webm;codecs=vp8,opus',
+                'video/webm;codecs=h264,opus',
+                'video/webm',
+            ];
+            const supportedMimeType = recordingMimeTypes.find((mimeType) => {
+                if (typeof MediaRecorder.isTypeSupported !== 'function') {
+                    return mimeType === 'video/webm';
+                }
+                return MediaRecorder.isTypeSupported(mimeType);
+            });
+            const recorderOptions = supportedMimeType ? { mimeType: supportedMimeType } : undefined;
+            const recorder = new MediaRecorder(stream, recorderOptions);
             mediaRecorderRef.current = recorder;
 
             recorder.ondataavailable = (event) => {
@@ -935,7 +977,9 @@ const VideoMeeting = () => {
             setIsRecording(true);
             setRecordingError('');
         } catch (err) {
-            setRecordingError(err.message || 'Recording is not supported in this browser.');
+            const message = err?.message || 'Recording is not supported in this browser.';
+            setRecordingError(`Unable to start recording. ${message}`);
+            setIsRecording(false);
         }
     };
 
@@ -1512,14 +1556,67 @@ const VideoMeeting = () => {
                         <FaRegHandPaper />
                     </button>
 
-                    <button
-                        className="control-btn"
-                        onClick={() => sendReaction('👏')}
-                        title="Send applause"
-                        aria-label="Send applause reaction"
-                    >
-                        <FaRegSmile />
-                    </button>
+                    <div className="emoji-picker-wrap" ref={emojiPickerRef}>
+                        <button
+                            className={`control-btn ${showEmojiPicker ? 'sharing' : ''}`}
+                            onClick={() => setShowEmojiPicker((prev) => !prev)}
+                            title="Send emoji reaction"
+                            aria-label="Open emoji reactions"
+                        >
+                            <FaRegSmile />
+                        </button>
+
+                        {showEmojiPicker && (
+                            <div className="emoji-picker-popover">
+                                <div className="emoji-row">
+                                    {quickEmojiOptions.map((emoji) => (
+                                        <button
+                                            key={emoji}
+                                            type="button"
+                                            className="emoji-btn"
+                                            onClick={() => {
+                                                sendReaction(emoji);
+                                                setShowEmojiPicker(false);
+                                                setShowMoreEmojis(false);
+                                            }}
+                                            title={`Send ${emoji}`}
+                                        >
+                                            {emoji}
+                                        </button>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        className="emoji-more-btn"
+                                        onClick={() => setShowMoreEmojis((prev) => !prev)}
+                                        title={showMoreEmojis ? 'Show fewer emojis' : 'Show more emojis'}
+                                        aria-label={showMoreEmojis ? 'Show fewer emojis' : 'Show more emojis'}
+                                    >
+                                        {showMoreEmojis ? <FaChevronUp /> : <FaChevronDown />}
+                                    </button>
+                                </div>
+
+                                {showMoreEmojis && (
+                                    <div className="emoji-row emoji-row-more">
+                                        {extraEmojiOptions.map((emoji) => (
+                                            <button
+                                                key={emoji}
+                                                type="button"
+                                                className="emoji-btn"
+                                                onClick={() => {
+                                                    sendReaction(emoji);
+                                                    setShowEmojiPicker(false);
+                                                    setShowMoreEmojis(false);
+                                                }}
+                                                title={`Send ${emoji}`}
+                                            >
+                                                {emoji}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
 
                     <button
                         className="control-btn"

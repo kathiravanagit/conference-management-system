@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
-import { FaBell } from 'react-icons/fa';
+import { FaBell, FaTimes } from 'react-icons/fa';
 import './NotificationBell.css';
 
 const NotificationBell = () => {
@@ -42,6 +42,17 @@ const NotificationBell = () => {
         }
     };
 
+    const handleDeleteNotification = async (notificationId) => {
+        try {
+            const target = notifications.find((n) => n._id === notificationId);
+            await axios.delete(`/api/notifications/${notificationId}`);
+            setNotifications((prev) => prev.filter((n) => n._id !== notificationId));
+            if (target && !target.isRead) {
+                setUnread((prev) => Math.max(0, prev - 1));
+            }
+        } catch (_) { }
+    };
+
     const timeAgo = (date) => {
         const diff = (Date.now() - new Date(date)) / 1000;
         if (diff < 60) return 'just now';
@@ -74,7 +85,18 @@ const NotificationBell = () => {
                                     key={n._id}
                                     className={`notif-item ${n.isRead ? '' : 'notif-unread'}`}
                                 >
-                                    <p className="notif-title">{n.title}</p>
+                                    <div className="notif-item-top">
+                                        <p className="notif-title">{n.title}</p>
+                                        <button
+                                            type="button"
+                                            className="notif-remove-btn"
+                                            onClick={() => handleDeleteNotification(n._id)}
+                                            aria-label="Remove notification"
+                                            title="Remove"
+                                        >
+                                            <FaTimes />
+                                        </button>
+                                    </div>
                                     <p className="notif-msg">{n.message}</p>
                                     <span className="notif-time">{timeAgo(n.createdAt)}</span>
                                 </div>

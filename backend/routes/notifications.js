@@ -36,4 +36,22 @@ router.put('/:id/read', protect, require2FAComplete, async (req, res) => {
     }
 });
 
+// DELETE /api/notifications/:id — delete one notification
+router.delete('/:id', protect, require2FAComplete, async (req, res) => {
+    try {
+        const removed = await Notification.findOneAndDelete({
+            _id: req.params.id,
+            userId: req.user.id,
+        });
+
+        if (!removed) {
+            return res.status(404).json({ success: false, message: 'Notification not found' });
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 module.exports = router;

@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './components/ui/Toast';
@@ -34,12 +34,18 @@ const RouteFallback = () => <div className="loading">Loading...</div>;
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return <div className="loading">Loading...</div>;
   }
 
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  if (isAuthenticated) {
+    return children;
+  }
+
+  const redirectTarget = `${location.pathname}${location.search}`;
+  return <Navigate to={`/login?redirect=${encodeURIComponent(redirectTarget)}`} replace />;
 };
 
 const StaffRoute = ({ children }) => {

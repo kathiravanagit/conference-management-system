@@ -21,6 +21,8 @@ const Login = () => {
   const { login, googleLogin, logout, verifyTwoFactor } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const redirectParam = new URLSearchParams(location.search).get('redirect');
+  const redirectPath = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/conferences';
 
   const handleGoogleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
@@ -34,7 +36,7 @@ const Login = () => {
           setInfo(result.message || 'Two-factor verification required.');
           return;
         }
-        navigate('/conferences');
+        navigate(redirectPath);
       } catch (err) {
         setError(err.response?.data?.message || 'Google login failed');
       } finally {
@@ -79,7 +81,7 @@ const Login = () => {
         setError('Selected role does not match this account.');
         return;
       }
-      navigate('/conferences');
+      navigate(redirectPath);
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {
@@ -106,7 +108,7 @@ const Login = () => {
         setError('Selected role does not match this account.');
         return;
       }
-      navigate('/conferences');
+      navigate(redirectPath);
     } catch (err) {
       setError(err.response?.data?.message || '2FA verification failed');
     } finally {
@@ -240,7 +242,7 @@ const Login = () => {
 
         {!requires2FA && (
           <p className="auth-link">
-            Don't have an account? <Link to="/register">Register here</Link>
+            Don't have an account? <Link to={`/register${location.search || ''}`}>Register here</Link>
           </p>
         )}
       </div>

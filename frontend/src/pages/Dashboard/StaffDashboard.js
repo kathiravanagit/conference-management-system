@@ -23,6 +23,8 @@ const StaffDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
+  const [inviteCopyMessage, setInviteCopyMessage] = useState('');
   const { user } = useAuth();
 
   const loadDashboard = async () => {
@@ -158,6 +160,8 @@ const StaffDashboard = () => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setInviteLink('');
+    setInviteCopyMessage('');
 
     if (!conferenceForm.endDate) {
       setError('Please provide an end date/time.');
@@ -201,7 +205,15 @@ const StaffDashboard = () => {
         },
       };
 
-      await conferenceAPI.create(payload);
+      const createResponse = await conferenceAPI.create(payload);
+      const createdConference = createResponse?.data?.conference;
+      if (createdConference?._id) {
+        const inviteUrl = new URL(`/conference/${createdConference._id}/meeting`, window.location.origin);
+        if (conferenceForm.meetingPassword) {
+          inviteUrl.searchParams.set('pwd', conferenceForm.meetingPassword);
+        }
+        setInviteLink(inviteUrl.toString());
+      }
 
       setSuccess('Conference created successfully.');
       setConferenceForm({
@@ -227,6 +239,16 @@ const StaffDashboard = () => {
       setSuccess('Conference created successfully. Participants can join from the Join button when the session starts.');
     } catch (err) {
       setError(handleApiError(err));
+    }
+  };
+
+  const handleCopyInviteLink = async () => {
+    if (!inviteLink) return;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setInviteCopyMessage('Invite link copied.');
+    } catch (_) {
+      setInviteCopyMessage('Copy failed. Please copy manually.');
     }
   };
 
@@ -272,6 +294,19 @@ const StaffDashboard = () => {
 
         {error && <ErrorMessage message={error} onClose={() => setError('')} />}
         {success && <p className="staff-success">{success}</p>}
+        {inviteLink && (
+          <div className="staff-invite-box">
+            <h3>Shareable Join Link</h3>
+            <p>Participants can open this link, create/login account, and join with prefilled password.</p>
+            <div className="staff-invite-row">
+              <input type="text" value={inviteLink} readOnly aria-label="Shareable conference invite link" />
+              <button type="button" className="btn btn-primary" onClick={handleCopyInviteLink}>
+                Copy Link
+              </button>
+            </div>
+            {inviteCopyMessage && <span className="staff-invite-copy-status">{inviteCopyMessage}</span>}
+          </div>
+        )}
 
         <section className="staff-stats-grid">
           {/* Ongoing Conferences Section */}

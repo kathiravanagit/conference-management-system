@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import EyeIcon from '../../components/ui/EyeIcon';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useGoogleLogin } from '@react-oauth/google';
 import ErrorMessage from '../../components/ui/ErrorMessage';
@@ -20,6 +20,9 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const { register, googleLogin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectParam = new URLSearchParams(location.search).get('redirect');
+  const redirectPath = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/conferences';
 
   const handleGoogleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
@@ -37,7 +40,7 @@ const Register = () => {
           });
           return;
         }
-        navigate('/conferences');
+        navigate(redirectPath);
       } catch (err) {
         setError(err.response?.data?.message || 'Google signup failed');
       } finally {
@@ -71,7 +74,7 @@ const Register = () => {
       );
       setInfo(response?.message || 'Registration successful. Please check your email.');
       setTimeout(() => {
-        navigate('/login', {
+        navigate(`/login${location.search || ''}`, {
           state: {
             message: response?.message || 'Registration successful. Please check your email to confirm your account.',
           },
@@ -201,7 +204,7 @@ const Register = () => {
         </button>
 
         <p className="auth-link">
-          Already have an account? <Link to="/login">Login here</Link>
+          Already have an account? <Link to={`/login${location.search || ''}`}>Login here</Link>
         </p>
       </div>
     </div>
