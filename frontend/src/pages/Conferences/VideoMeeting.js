@@ -96,6 +96,7 @@ const VideoMeeting = () => {
     const emojiPickerRef = useRef();
     const mediaRecorderRef = useRef(null);
     const recordedChunksRef = useRef([]);
+    const recordingStreamRef = useRef(null);
 
     const quickEmojiOptions = ['👏', '👍', '🔥', '🎉', '❤️'];
     const extraEmojiOptions = ['😂', '😮', '🙌', '💯', '✅', '🤝'];
@@ -939,6 +940,29 @@ const VideoMeeting = () => {
 
         try {
             recordedChunksRef.current = [];
+
+            const screenVideoTrack = isScreenSharing ? screenStream?.getVideoTracks?.()[0] : null;
+            const cameraVideoTrack = stream.getVideoTracks?.()[0] || null;
+            const selectedVideoTrack = screenVideoTrack || cameraVideoTrack;
+            const micAudioTrack = stream.getAudioTracks?.()[0] || null;
+
+            if (!selectedVideoTrack || selectedVideoTrack.readyState !== 'live') {
+                setRecordingError('No active video track. Turn on camera or start screen share before recording.');
+                return;
+            }
+
+            if (!screenVideoTrack && cameraVideoTrack && !cameraVideoTrack.enabled) {
+                setRecordingError('Camera is off. Turn on camera or share screen before recording.');
+                return;
+            }
+
+            const captureStream = new MediaStream();
+            captureStream.addTrack(selectedVideoTrack);
+            if (micAudioTrack && micAudioTrack.readyState === 'live') {
+                captureStream.addTrack(micAudioTrack);
+            }
+            recordingStreamRef.current = captureStream;
+
             const recordingMimeTypes = [
                 'video/webm;codecs=vp9,opus',
                 'video/webm;codecs=vp8,opus',
@@ -952,7 +976,7 @@ const VideoMeeting = () => {
                 return MediaRecorder.isTypeSupported(mimeType);
             });
             const recorderOptions = supportedMimeType ? { mimeType: supportedMimeType } : undefined;
-            const recorder = new MediaRecorder(stream, recorderOptions);
+            const recorder = new MediaRecorder(captureStream, recorderOptions);
             mediaRecorderRef.current = recorder;
 
             recorder.ondataavailable = (event) => {
@@ -970,6 +994,11 @@ const VideoMeeting = () => {
                     }
                 } catch (err) {
                     setRecordingError(err?.response?.data?.message || err.message || 'Failed to upload recording.');
+                } finally {
+                    if (recordingStreamRef.current) {
+                        recordingStreamRef.current.getTracks().forEach((track) => track.stop());
+                        recordingStreamRef.current = null;
+                    }
                 }
             };
 
@@ -980,6 +1009,10 @@ const VideoMeeting = () => {
             const message = err?.message || 'Recording is not supported in this browser.';
             setRecordingError(`Unable to start recording. ${message}`);
             setIsRecording(false);
+            if (recordingStreamRef.current) {
+                recordingStreamRef.current.getTracks().forEach((track) => track.stop());
+                recordingStreamRef.current = null;
+            }
         }
     };
 
