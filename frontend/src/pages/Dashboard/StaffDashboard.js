@@ -291,6 +291,7 @@ const StaffDashboard = () => {
                       <span>{formatDate(conf.date)}</span>
                       <span>{formatTime(conf.date)}{conf.endDate && <> – {formatTime(conf.endDate)}</>}</span>
                       <span className="conf-dept-pill">{conf.department}</span>
+                      <span>Registrations: {conf.registrationCount ?? conf.attendeeCount ?? 0}</span>
                     </div>
                     <div className="action-btns">
                       {isCreator(conf) ? (
@@ -344,6 +345,7 @@ const StaffDashboard = () => {
                       <span>{formatDate(conf.date)}</span>
                       <span>{formatTime(conf.date)}{conf.endDate && <> – {formatTime(conf.endDate)}</>}</span>
                       <span className="conf-dept-pill">{conf.department}</span>
+                      <span>Registrations: {conf.registrationCount ?? conf.attendeeCount ?? 0}</span>
                     </div>
                     <div className="action-btns">
                       {isCreator(conf) ? (
@@ -381,6 +383,7 @@ const StaffDashboard = () => {
                       <span>{formatDate(conf.date)}</span>
                       {conf.endDate && <span>– {formatDate(conf.endDate)}</span>}
                       <span className="conf-dept-pill">{conf.department}</span>
+                      <span>Registrations: {conf.registrationCount ?? conf.attendeeCount ?? 0}</span>
                     </div>
                     <div className="action-btns" style={{ marginTop: '0.8rem' }}>
                       <button

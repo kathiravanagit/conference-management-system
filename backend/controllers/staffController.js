@@ -61,7 +61,16 @@ exports.getStaffDashboard = async (req, res) => {
       normalizedConferences.find((conference) => conference.status === 'ongoing') || null;
 
     const conferenceIds = normalizedConferences.map((conference) => conference._id);
-    const [registrationsCount, certificatesCount, qaCount, topPerformers] = await Promise.all([
+    const [registrationCountsByConference, registrationsCount, certificatesCount, qaCount, topPerformers] = await Promise.all([
+      Registration.aggregate([
+        { $match: { conferenceId: { $in: conferenceIds }, status: { $ne: 'cancelled' } } },
+        {
+          $group: {
+            _id: '$conferenceId',
+            count: { $sum: 1 },
+          },
+        },
+      ]),
       Registration.countDocuments({ conferenceId: { $in: conferenceIds } }),
       Certificate.countDocuments({ conferenceId: { $in: conferenceIds } }),
       QAChat.countDocuments({ conferenceId: { $in: conferenceIds } }),
@@ -72,9 +81,19 @@ exports.getStaffDashboard = async (req, res) => {
         .lean(),
     ]);
 
-    const upcomingCount = normalizedConferences.filter((conference) => conference.status === 'upcoming').length;
-    const ongoingCount = normalizedConferences.filter((conference) => conference.status === 'ongoing').length;
-    const completedCount = normalizedConferences.filter((conference) => conference.status === 'completed').length;
+    const registrationCountMap = registrationCountsByConference.reduce((acc, item) => {
+      acc[item._id.toString()] = item.count;
+      return acc;
+    }, {});
+
+    const conferencesWithRegistrationCounts = normalizedConferences.map((conference) => ({
+      ...conference,
+      registrationCount: registrationCountMap[conference._id.toString()] || 0,
+    }));
+
+    const upcomingCount = conferencesWithRegistrationCounts.filter((conference) => conference.status === 'upcoming').length;
+    const ongoingCount = conferencesWithRegistrationCounts.filter((conference) => conference.status === 'ongoing').length;
+    const completedCount = conferencesWithRegistrationCounts.filter((conference) => conference.status === 'completed').length;
 
     return res.status(200).json({
       success: true,
@@ -90,9 +109,9 @@ exports.getStaffDashboard = async (req, res) => {
       ongoingConference,
       topPerformers,
       leaderboard: topPerformers,
-      upcomingConferences: normalizedConferences.filter((c) => c.status === 'upcoming'),
-      ongoingConferences: normalizedConferences.filter((c) => c.status === 'ongoing'),
-      recentConferences: normalizedConferences,
+      upcomingConferences: conferencesWithRegistrationCounts.filter((c) => c.status === 'upcoming'),
+      ongoingConferences: conferencesWithRegistrationCounts.filter((c) => c.status === 'ongoing'),
+      recentConferences: conferencesWithRegistrationCounts,
     });
   } catch (error) {
     return res.status(400).json({
