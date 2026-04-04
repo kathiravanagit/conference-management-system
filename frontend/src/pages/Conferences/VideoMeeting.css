@@ -855,11 +855,12 @@
   top: 112px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(15, 24, 38, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(8, 13, 22, 0.95);
+  border: 1px solid rgba(203, 224, 255, 0.62);
   border-radius: 999px;
   padding: 0.25rem 0.7rem;
-  font-size: 1.25rem;
+  font-size: 1.55rem;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
   z-index: 11;
   animation: reactionPop 0.35s ease;
 }
@@ -922,8 +923,8 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
-  background: rgba(13, 20, 34, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(10, 15, 26, 0.98);
+  border: 1px solid rgba(173, 203, 255, 0.42);
   border-radius: 12px;
   padding: 0.4rem;
   display: grid;
@@ -944,25 +945,25 @@
 
 .emoji-btn,
 .emoji-more-btn {
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.08);
-  color: #f4f8ff;
+  border: 1px solid rgba(173, 203, 255, 0.4);
+  background: rgba(90, 129, 191, 0.24);
+  color: #ffffff;
   border-radius: 8px;
-  height: 34px;
+  height: 38px;
   cursor: pointer;
   display: grid;
   place-items: center;
-  font-size: 1rem;
+  font-size: 1.22rem;
 }
 
 .emoji-more-btn {
-  font-size: 0.85rem;
+  font-size: 0.92rem;
 }
 
 .emoji-btn:hover,
 .emoji-more-btn:hover {
-  background: rgba(125, 176, 255, 0.2);
-  border-color: rgba(161, 199, 255, 0.56);
+  background: rgba(125, 176, 255, 0.34);
+  border-color: rgba(191, 219, 255, 0.7);
 }
 
 .control-btn {

@@ -1640,12 +1640,12 @@ const VideoMeeting = () => {
                         </button>
                     )}
 
-                    {canManageWaitingRoom && (
+                    {isHost && (
                         <button
                             className={`control-btn ${isRecording ? 'muted' : ''}`}
                             onClick={toggleRecording}
-                            title={isRecording ? 'Stop recording' : 'Start recording'}
-                            aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+                            title={isRecording ? 'Stop host recording (local)' : 'Start host recording (local)'}
+                            aria-label={isRecording ? 'Stop host recording' : 'Start host recording'}
                         >
                             <FaStopCircle />
                         </button>

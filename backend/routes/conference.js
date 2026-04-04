@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const path = require('path');
+const fs = require('fs');
 const multer = require('multer');
 const CompletedConference = require('../models/CompletedConference');
 const {
@@ -17,8 +18,13 @@ const {
 const { protect, authorize, require2FAComplete } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
+const recordingsDir = path.join(process.cwd(), 'uploads', 'recordings');
+if (!fs.existsSync(recordingsDir)) {
+  fs.mkdirSync(recordingsDir, { recursive: true });
+}
+
 const recordingStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/recordings/'),
+  destination: (req, file, cb) => cb(null, recordingsDir),
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, `recording-${uniqueSuffix}${path.extname(file.originalname)}`);
