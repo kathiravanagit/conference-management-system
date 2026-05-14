@@ -68,7 +68,7 @@ const Home = () => {
       color: '#ea580c',
     },
     {
-      icon: <FaBarChart />,
+      icon: <FaChartBar />,
       title: 'Analytics Dashboard',
       desc: 'View detailed conference attendance statistics and participation insights.',
       color: '#ca8a04',
