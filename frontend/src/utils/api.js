@@ -71,14 +71,18 @@ export const feedbackAPI = {
 };
 
 /**
- * Leaderboard API calls
+ * Analytics API calls
  */
-export const leaderboardAPI = {
-  getLeaderboard: (params) => axios.get(`${API_URL}/leaderboard`, { params }),
-  getUserPosition: (userId) => axios.get(`${API_URL}/leaderboard/user/${userId}`),
-  getDepartmentLeaderboard: (department, params) =>
-    axios.get(`${API_URL}/leaderboard/department/${department}`, { params }),
-  getMyLeaderboard: () => axios.get(`${API_URL}/leaderboard/my`),
+export const analyticsAPI = {
+  getOverview: (params) => axios.get(`${API_URL}/analytics`, { params }),
+  getAttendanceStats: (params) => axios.get(`${API_URL}/analytics/attendance`, { params }),
+  getPopularConferences: (params) =>
+    axios.get(`${API_URL}/analytics/popular`, { params }),
+  getAttendanceTrends: (params) => axios.get(`${API_URL}/analytics/trends`, { params }),
+  getCategoryBreakdown: (params) =>
+    axios.get(`${API_URL}/analytics/categories`, { params }),
+  getUserParticipation: (params) =>
+    axios.get(`${API_URL}/analytics/user-participation`, { params }),
 };
 
 /**

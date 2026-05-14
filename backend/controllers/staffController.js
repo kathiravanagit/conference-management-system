@@ -2,7 +2,6 @@ const Conference = require('../models/Conference');
 const Registration = require('../models/Registration');
 const Certificate = require('../models/Certificate');
 const QAChat = require('../models/QAChat');
-const Leaderboard = require('../models/Leaderboard');
 
 /**
  * Derive conference status from actual start/end datetime.
@@ -61,7 +60,7 @@ exports.getStaffDashboard = async (req, res) => {
       normalizedConferences.find((conference) => conference.status === 'ongoing') || null;
 
     const conferenceIds = normalizedConferences.map((conference) => conference._id);
-    const [registrationCountsByConference, registrationsCount, certificatesCount, qaCount, topPerformers] = await Promise.all([
+    const [registrationCountsByConference, registrationsCount, certificatesCount, qaCount] = await Promise.all([
       Registration.aggregate([
         { $match: { conferenceId: { $in: conferenceIds }, status: { $ne: 'cancelled' } } },
         {
@@ -74,11 +73,6 @@ exports.getStaffDashboard = async (req, res) => {
       Registration.countDocuments({ conferenceId: { $in: conferenceIds } }),
       Certificate.countDocuments({ conferenceId: { $in: conferenceIds } }),
       QAChat.countDocuments({ conferenceId: { $in: conferenceIds } }),
-      Leaderboard.find()
-        .populate('userId', 'name email department')
-        .sort({ totalPoints: -1 })
-        .limit(10)
-        .lean(),
     ]);
 
     const registrationCountMap = registrationCountsByConference.reduce((acc, item) => {
@@ -107,8 +101,6 @@ exports.getStaffDashboard = async (req, res) => {
         qaCount,
       },
       ongoingConference,
-      topPerformers,
-      leaderboard: topPerformers,
       upcomingConferences: conferencesWithRegistrationCounts.filter((c) => c.status === 'upcoming'),
       ongoingConferences: conferencesWithRegistrationCounts.filter((c) => c.status === 'ongoing'),
       recentConferences: conferencesWithRegistrationCounts,

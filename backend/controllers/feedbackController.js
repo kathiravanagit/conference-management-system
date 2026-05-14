@@ -1,6 +1,4 @@
 const Feedback = require('../models/Feedback');
-const Leaderboard = require('../models/Leaderboard');
-const { calculatePoints } = require('../utils/helpers');
 
 /**
  * Submit feedback for conference
@@ -44,25 +42,6 @@ exports.submitFeedback = async (req, res, next) => {
       comment,
       categories: categories || {},
     });
-
-    // Add points to leaderboard
-    const points = calculatePoints('feedback');
-    let leaderboard = await Leaderboard.findOne({ userId: req.user.id });
-
-    if (leaderboard) {
-      leaderboard.totalPoints += points;
-      leaderboard.feedbackSubmitted += 1;
-      leaderboard.pointsHistory.push({
-        conferenceId,
-        points,
-        reason: 'Feedback Submitted',
-      });
-      await leaderboard.save();
-    } else {
-      await Leaderboard.create({
-        userId: req.user.id,
-        totalPoints: points,
-        feedbackSubmitted: 1,
         pointsHistory: [
           {
             conferenceId,

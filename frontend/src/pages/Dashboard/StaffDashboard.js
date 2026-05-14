@@ -7,6 +7,7 @@ import {
   conferenceAPI,
   attendanceAPI,
 } from '../../utils/api';
+import api from '../../utils/api';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import Loading from '../../components/ui/Loading';
 import { formatDate, formatTime, handleApiError } from '../../utils/helpers';
@@ -19,7 +20,7 @@ const StaffDashboard = () => {
   const [upcomingConferences, setUpcomingConferences] = useState([]);
   const [ongoingConferences, setOngoingConferences] = useState([]);
   const [completedConferences, setCompletedConferences] = useState([]);
-  const [leaderboard, setLeaderboard] = useState([]);
+  const [topParticipants, setTopParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -35,9 +36,16 @@ const StaffDashboard = () => {
       const data = dashboardData.data || dashboardData;
       setDashboard(data);
       setConferences(data.recentConferences || []);
-      setLeaderboard(data.leaderboard || data.topPerformers || []);
       setUpcomingConferences(data.upcomingConferences || []);
       setOngoingConferences(data.ongoingConferences || []);
+      
+      // Load top participants from analytics
+      try {
+        const analyticsRes = await api.get('/analytics/user-participation?limit=5');
+        setTopParticipants(analyticsRes.data.data || []);
+      } catch (analyticsError) {
+        console.error('Failed to load analytics:', analyticsError);
+      }
     } catch (err) {
       setError('Failed to load dashboard: ' + (err.message || 'Unknown error'));
     } finally {
@@ -289,7 +297,7 @@ const StaffDashboard = () => {
       <div className="staff-dashboard-container">
         <div className="staff-dashboard-header">
           <h1>Staff Dashboard</h1>
-          <p>Manage conferences, meetings, certificates, Q&A, and leaderboard from one place.</p>
+          <p>Manage conferences, meetings, certificates, Q&A, and view analytics from one place.</p>
         </div>
 
         {error && <ErrorMessage message={error} onClose={() => setError('')} />}
@@ -753,19 +761,19 @@ const StaffDashboard = () => {
           </section>
 
           <section className="staff-card">
-            <h2>Leaderboard (Top Students)</h2>
+            <h2>Top Participants (Most Active)</h2>
             <div className="leaderboard-list">
-              {leaderboard.length === 0 ? (
-                <p>No leaderboard data available.</p>
+              {topParticipants.length === 0 ? (
+                <p>No participant data available.</p>
               ) : (
-                leaderboard.map((entry, index) => (
-                  <div key={entry._id} className="leaderboard-item">
+                topParticipants.map((participant, index) => (
+                  <div key={participant._id} className="leaderboard-item">
                     <span>#{index + 1}</span>
                     <div>
-                      <strong>{entry.userId?.name}</strong>
-                      <p>{entry.userId?.department}</p>
+                      <strong>{participant.name}</strong>
+                      <p>{participant.email}</p>
                     </div>
-                    <strong>{entry.totalPoints} pts</strong>
+                    <strong>{participant.registrationCount} conf</strong>
                   </div>
                 ))
               )}

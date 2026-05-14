@@ -47,7 +47,7 @@ const ParticipationDashboard = () => {
         totalRegistered: registrations.length,
         totalAttended: registrations.filter((r) => r.status === 'attended').length,
         totalCertificates: certificates.length,
-        currentPoints: profileResponse.data.user?.leaderboardPoints || 0,
+        currentPoints: profileResponse.data.user?.participationCount || 0,
       };
       setStats(stats);
       setError('');

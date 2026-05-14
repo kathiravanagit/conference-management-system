@@ -8,7 +8,7 @@ import {
   FaVideo,
   FaCertificate,
   FaComments,
-  FaTrophy,
+  FaBarChart,
   FaStar,
   FaUserGraduate,
   FaChalkboardTeacher,
@@ -68,9 +68,9 @@ const Home = () => {
       color: '#ea580c',
     },
     {
-      icon: <FaTrophy />,
-      title: 'Leaderboard',
-      desc: 'Compete and earn points for conferences attended, feedback given, and more.',
+      icon: <FaBarChart />,
+      title: 'Analytics Dashboard',
+      desc: 'View detailed conference attendance statistics and participation insights.',
       color: '#ca8a04',
     },
     {
@@ -85,7 +85,7 @@ const Home = () => {
     {
       icon: <FaUserGraduate />,
       title: 'Students',
-      desc: 'Discover events, register instantly, earn certificates, and climb the leaderboard.',
+      desc: 'Discover events, register instantly, earn certificates, and view analytics.',
     },
     {
       icon: <FaChalkboardTeacher />,

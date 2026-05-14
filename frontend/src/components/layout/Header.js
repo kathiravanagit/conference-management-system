@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   FaHome,
   FaCalendar,
-  FaTrophy,
+  FaBarChart,
   FaTicketAlt,
   FaList,
   FaSignOutAlt,
@@ -137,8 +137,8 @@ const Header = () => {
                 </>
               )}
 
-              <Link to="/leaderboard" className={`nav-link ${isActive('/leaderboard') ? 'nav-active' : ''}`}>
-                <FaTrophy /> Leaderboard
+              <Link to="/analytics" className={`nav-link ${isActive('/analytics') ? 'nav-active' : ''}`}>
+                <FaBarChart /> Analytics
               </Link>
 
               <div className="profile-menu" ref={menuRef}>

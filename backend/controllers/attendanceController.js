@@ -1,7 +1,5 @@
 const Registration = require('../models/Registration');
 const Conference = require('../models/Conference');
-const Leaderboard = require('../models/Leaderboard');
-const { calculatePoints } = require('../utils/helpers');
 
 /**
  * Mark attendance (QR code scan)
@@ -50,35 +48,7 @@ exports.markAttendance = async (req, res, next) => {
     registration.status = 'attended';
     await registration.save();
 
-    // Prevent staff (conference creator) from getting points for their own conference
-    const conference = await Conference.findById(registration.conferenceId);
-    if (conference && registration.userId.toString() !== conference.createdBy.toString()) {
-      const points = calculatePoints('attend');
-      let leaderboard = await Leaderboard.findOne({ userId: registration.userId });
-      if (leaderboard) {
-        leaderboard.totalPoints += points;
-        leaderboard.conferenceAttended += 1;
-        leaderboard.pointsHistory.push({
-          conferenceId: registration.conferenceId,
-          points,
-          reason: 'Conference Attendance',
-        });
-        await leaderboard.save();
-      } else {
-        await Leaderboard.create({
-          userId: registration.userId,
-          totalPoints: points,
-          conferenceAttended: 1,
-          pointsHistory: [
-            {
-              conferenceId: registration.conferenceId,
-              points,
-              reason: 'Conference Attendance',
-            },
-          ],
-        });
-      }
-    }
+
 
     res.status(200).json({
       success: true,

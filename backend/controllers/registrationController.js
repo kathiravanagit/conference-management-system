@@ -1,10 +1,9 @@
 const Registration = require('../models/Registration');
 const Conference = require('../models/Conference');
 const User = require('../models/User');
-const Leaderboard = require('../models/Leaderboard');
 const Notification = require('../models/Notification');
 const mongoose = require('mongoose');
-const { generateTicketNumber, calculatePoints } = require('../utils/helpers');
+const { generateTicketNumber } = require('../utils/helpers');
 const { sendRegistrationEmail, sendWaitlistPromotionEmail } = require('../utils/email');
 
 // Get my registrations
@@ -89,12 +88,6 @@ const registerForConference = async (req, res, next) => {
     });
 
     if (!isFull) {
-      // Award points for registration
-      await Leaderboard.findOneAndUpdate(
-        { userId: req.user.id },
-        { $inc: { totalPoints: calculatePoints('registration') } },
-        { upsert: true, new: true }
-      );
     }
 
     // Send confirmation email
@@ -153,11 +146,6 @@ const cancelRegistration = async (req, res, next) => {
 
     // Deduct points if was confirmed
     if (wasRegistered) {
-      await Leaderboard.findOneAndUpdate(
-        { userId: req.user.id },
-        { $inc: { totalPoints: -calculatePoints('registration') } }
-      );
-
       // Auto-promote first waitlisted student
       const nextInLine = await Registration.findOne({
         conferenceId: registration.conferenceId._id,
@@ -169,12 +157,6 @@ const cancelRegistration = async (req, res, next) => {
       if (nextInLine) {
         nextInLine.status = 'registered';
         await nextInLine.save();
-        // Award points to newly promoted student
-        await Leaderboard.findOneAndUpdate(
-          { userId: nextInLine.userId._id },
-          { $inc: { totalPoints: calculatePoints('registration') } },
-          { upsert: true }
-        );
         // Notify them by email
         await sendWaitlistPromotionEmail(
           nextInLine.userId.email,

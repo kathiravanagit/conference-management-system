@@ -2,8 +2,7 @@ const Certificate = require('../models/Certificate');
 const Registration = require('../models/Registration');
 const Conference = require('../models/Conference');
 const User = require('../models/User');
-const Leaderboard = require('../models/Leaderboard');
-const { generateCertificateNumber, calculatePoints } = require('../utils/helpers');
+const { generateCertificateNumber } = require('../utils/helpers');
 const { generateCertificate } = require('../utils/certificate');
 const { sendCertificateEmail } = require('../utils/email');
 
@@ -74,30 +73,6 @@ exports.generateCertificate = async (req, res, next) => {
     // Update registration
     registration.certificateGenerated = true;
     await registration.save();
-
-    // Add points to leaderboard
-    const points = calculatePoints('certificate');
-    let leaderboard = await Leaderboard.findOne({ userId: registration.userId._id });
-
-    if (leaderboard) {
-      leaderboard.totalPoints += points;
-      leaderboard.certificatesEarned += 1;
-      leaderboard.pointsHistory.push({
-        conferenceId: registration.conferenceId._id,
-        points,
-        reason: 'Certificate Earned',
-      });
-      await leaderboard.save();
-    } else {
-      await Leaderboard.create({
-        userId: registration.userId._id,
-        totalPoints: points,
-        certificatesEarned: 1,
-        pointsHistory: [
-          {
-            conferenceId: registration.conferenceId._id,
-            points,
-            reason: 'Certificate Earned',
           },
         ],
       });
@@ -278,32 +253,7 @@ exports.uploadCertificate = async (req, res, next) => {
       { new: true }
     );
 
-    const points = calculatePoints('certificate');
-    let leaderboard = await Leaderboard.findOne({ userId });
 
-    if (leaderboard) {
-      leaderboard.totalPoints += points;
-      leaderboard.certificatesEarned += 1;
-      leaderboard.pointsHistory.push({
-        conferenceId,
-        points,
-        reason: 'Certificate Uploaded',
-      });
-      await leaderboard.save();
-    } else {
-      await Leaderboard.create({
-        userId,
-        totalPoints: points,
-        certificatesEarned: 1,
-        pointsHistory: [
-          {
-            conferenceId,
-            points,
-            reason: 'Certificate Uploaded',
-          },
-        ],
-      });
-    }
 
     await sendCertificateEmail(user.email, user.name, conference.title, `/${certificateUrl}`);
 

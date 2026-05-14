@@ -1,6 +1,4 @@
 const QAChat = require('../models/QAChat');
-const Leaderboard = require('../models/Leaderboard');
-const { calculatePoints } = require('../utils/helpers');
 const mongoose = require('mongoose');
 
 /**
@@ -24,23 +22,6 @@ exports.postMessage = async (req, res, next) => {
       message,
       isQuestion: isQuestion || false,
     });
-
-    // Add points if posted question
-    if (isQuestion) {
-      const points = calculatePoints('question');
-      let leaderboard = await Leaderboard.findOne({ userId: req.user.id });
-
-      if (leaderboard) {
-        leaderboard.totalPoints += points;
-        leaderboard.questionsAsked += 1;
-        leaderboard.pointsHistory.push({
-          conferenceId,
-          points,
-          reason: 'Question Asked',
-        });
-        await leaderboard.save();
-      }
-    }
 
     res.status(201).json({
       success: true,

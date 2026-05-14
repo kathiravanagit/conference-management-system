@@ -58,7 +58,7 @@ app.use('/api/conferences', require('./routes/conference'));
 app.use('/api/registrations', require('./routes/registration'));
 app.use('/api/certificates', require('./routes/certificate'));
 app.use('/api/feedback', require('./routes/feedback'));
-app.use('/api/leaderboard', require('./routes/leaderboard'));
+app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/qa', require('./routes/qa'));
 app.use('/api/staff', require('./routes/staff'));
@@ -91,7 +91,7 @@ app.get('/api', (req, res) => {
       '/api/registrations',
       '/api/certificates',
       '/api/feedback',
-      '/api/leaderboard',
+      '/api/analytics',
       '/api/attendance',
       '/api/qa',
       '/api/staff',

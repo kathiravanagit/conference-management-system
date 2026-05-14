@@ -11,7 +11,7 @@ const CATEGORY_COLORS = {
     conference: { bg: '#0ea5e9', label: 'Conference' },
     certificate: { bg: '#f59e0b', label: 'Certificate' },
     meeting: { bg: '#10b981', label: 'Meeting' },
-    leaderboard: { bg: '#ec4899', label: 'Leaderboard' },
+    analytics: { bg: '#ec4899', label: 'Analytics' },
     account: { bg: '#6366f1', label: 'Account' },
     staff: { bg: '#ef4444', label: 'Staff' },
 };

@@ -23,7 +23,7 @@ const chatFAQSchema = new mongoose.Schema(
         },
         category: {
             type: String,
-            enum: ['general', 'registration', 'conference', 'certificate', 'meeting', 'leaderboard', 'account', 'staff'],
+            enum: ['general', 'registration', 'conference', 'certificate', 'meeting', 'analytics', 'account', 'staff'],
             default: 'general',
         },
         // How many times this FAQ was matched/served

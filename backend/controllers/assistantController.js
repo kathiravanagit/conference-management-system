@@ -39,7 +39,7 @@ async function askWebsiteLLM(question, contextFaqs = []) {
     const model = process.env.OPENROUTER_MODEL || 'openrouter/auto';
     const siteContext = [
         'This product is ConferenceHub, a conference management system for students, staff, and admins.',
-        'Main website capabilities: conference discovery, registration, live meetings, attendance via QR, certificates, leaderboard, account settings, and 2FA.',
+        'Main website capabilities: conference discovery, registration, live meetings, attendance via QR, certificates, analytics, account settings, and 2FA.',
         'Students can register, join meetings, view participation, and download certificates when eligible.',
         'Staff can create conferences, manage attendance, scan QR, upload certificates, and moderate meeting actions.',
         'For unknown or policy-sensitive actions, guide users to dashboard flows and contact staff/admin support.',
@@ -191,18 +191,18 @@ const SEED_FAQS = [
         keywords: ['qr', 'code', 'where', 'find', 'my', 'ticket'],
         category: 'registration',
     },
-    // --- Leaderboard ---
+    // --- Analytics ---
     {
-        question: 'How does the leaderboard work?',
-        answer: 'Points are earned by attending conferences. The Leaderboard ranks all students by their total points. The more conferences you attend, the higher you rank!',
-        keywords: ['leaderboard', 'points', 'rank', 'score', 'compete', 'position'],
-        category: 'leaderboard',
+        question: 'How can I view conference analytics?',
+        answer: 'Go to the Analytics page to view attendance statistics, popular conferences, and participation metrics. This helps you understand conference trends and your attendance patterns.',
+        keywords: ['analytics', 'statistics', 'attendance', 'data', 'report', 'trends'],
+        category: 'analytics',
     },
     {
-        question: 'How do I earn points?',
-        answer: 'You earn points each time your attendance is marked at a conference. Check the Leaderboard to see your current rank and total points.',
-        keywords: ['earn', 'points', 'score', 'how', 'get'],
-        category: 'leaderboard',
+        question: 'What information does the Analytics dashboard show?',
+        answer: 'The Analytics dashboard displays total conferences, registrations, attendance rates by conference, most popular conferences, and top participants. Use this data to track participation and conference performance.',
+        keywords: ['analytics', 'dashboard', 'data', 'attendance', 'statistics', 'what'],
+        category: 'analytics',
     },
     // --- Account ---
     {
