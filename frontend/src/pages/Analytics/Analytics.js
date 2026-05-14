@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { FaChartBar, FaTrophy, FaUsers, FaChartLine } from 'react-icons/fa';
-import axios from 'axios';
+import {
+  FaCalendarAlt,
+  FaChartBar,
+  FaChartLine,
+  FaCheckCircle,
+  FaClipboardList,
+  FaTrophy,
+  FaUsers,
+} from 'react-icons/fa';
+import Loading from '../../components/ui/Loading';
+import ErrorMessage from '../../components/ui/ErrorMessage';
+import { handleApiError } from '../../utils/helpers';
+import { analyticsAPI } from '../../utils/api';
 import './Analytics.css';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 function Analytics() {
   const [loading, setLoading] = useState(true);
@@ -22,10 +31,10 @@ function Analytics() {
     try {
       setLoading(true);
       const [overviewRes, attendanceRes, popularRes, participationRes] = await Promise.all([
-        axios.get(`${API_URL}/analytics`),
-        axios.get(`${API_URL}/analytics/attendance`),
-        axios.get(`${API_URL}/analytics/popular`),
-        axios.get(`${API_URL}/analytics/user-participation`),
+        analyticsAPI.getOverview(),
+        analyticsAPI.getAttendanceStats(),
+        analyticsAPI.getPopularConferences(),
+        analyticsAPI.getUserParticipation(),
       ]);
 
       setAnalytics(overviewRes.data.analytics);
@@ -34,107 +43,114 @@ function Analytics() {
       setParticipation(participationRes.data.data || []);
       setError('');
     } catch (err) {
-      setError('Failed to load analytics data');
-      console.error(err);
+      setError(handleApiError(err));
     } finally {
       setLoading(false);
     }
   };
 
+  const formatDate = (date) => (date ? new Date(date).toLocaleDateString() : '-');
+
   if (loading) {
-    return <div className="analytics-loading">Loading analytics...</div>;
+    return <Loading />;
   }
 
   if (error) {
-    return <div className="analytics-error">{error}</div>;
+    return <ErrorMessage message={error} />;
   }
 
   return (
     <div className="analytics-container">
-      <h1 className="analytics-title">
-        <FaChartBar className="analytics-icon" />
-        Conference Analytics & Reports
-      </h1>
+      <div className="analytics-hero">
+        <h1 className="analytics-title">
+          <FaChartBar className="analytics-title-icon" />
+          Conference Analytics
+        </h1>
+        <p className="analytics-subtitle">
+          Track attendance quality, discover popular events, and monitor participant activity.
+        </p>
+      </div>
 
-      {/* Overview Stats */}
       <div className="analytics-overview">
-        <div className="stat-card">
-          <div className="stat-icon conferences">
-            <FaChartLine />
+        <div className="analytics-stat-card">
+          <div className="analytics-stat-icon conferences">
+            <FaClipboardList />
           </div>
-          <div className="stat-content">
-            <p className="stat-label">Total Conferences</p>
-            <p className="stat-value">{analytics?.totalConferences || 0}</p>
+          <div>
+            <p className="analytics-stat-label">Total Conferences</p>
+            <p className="analytics-stat-value">{analytics?.totalConferences || 0}</p>
           </div>
         </div>
 
-        <div className="stat-card">
-          <div className="stat-icon registrations">
+        <div className="analytics-stat-card">
+          <div className="analytics-stat-icon registrations">
             <FaUsers />
           </div>
-          <div className="stat-content">
-            <p className="stat-label">Total Registrations</p>
-            <p className="stat-value">{analytics?.totalRegistrations || 0}</p>
+          <div>
+            <p className="analytics-stat-label">Total Registrations</p>
+            <p className="analytics-stat-value">{analytics?.totalRegistrations || 0}</p>
           </div>
         </div>
 
-        <div className="stat-card">
-          <div className="stat-icon attendees">
-            <FaTrophy />
+        <div className="analytics-stat-card">
+          <div className="analytics-stat-icon attendees">
+            <FaCheckCircle />
           </div>
-          <div className="stat-content">
-            <p className="stat-label">Active Attendees</p>
-            <p className="stat-value">{analytics?.totalAttendees || 0}</p>
+          <div>
+            <p className="analytics-stat-label">Active Attendees</p>
+            <p className="analytics-stat-value">{analytics?.totalAttendees || 0}</p>
           </div>
         </div>
 
-        <div className="stat-card">
-          <div className="stat-icon recent">
+        <div className="analytics-stat-card">
+          <div className="analytics-stat-icon recent">
             <FaChartLine />
           </div>
-          <div className="stat-content">
-            <p className="stat-label">Recent Registrations</p>
-            <p className="stat-value">{analytics?.recentRegistrations || 0}</p>
+          <div>
+            <p className="analytics-stat-label">Recent Registrations</p>
+            <p className="analytics-stat-value">{analytics?.recentRegistrations || 0}</p>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="analytics-tabs">
         <button
           className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
           onClick={() => setActiveTab('overview')}
         >
+          <FaChartBar />
           Overview
         </button>
         <button
           className={`tab-button ${activeTab === 'attendance' ? 'active' : ''}`}
           onClick={() => setActiveTab('attendance')}
         >
+          <FaCalendarAlt />
           Attendance Stats
         </button>
         <button
           className={`tab-button ${activeTab === 'popular' ? 'active' : ''}`}
           onClick={() => setActiveTab('popular')}
         >
+          <FaTrophy />
           Popular Conferences
         </button>
         <button
           className={`tab-button ${activeTab === 'participation' ? 'active' : ''}`}
           onClick={() => setActiveTab('participation')}
         >
+          <FaUsers />
           Top Participants
         </button>
       </div>
 
-      {/* Tab Content */}
       <div className="analytics-content">
-        {/* Attendance Statistics Table */}
         {activeTab === 'attendance' && (
           <div className="table-section">
             <h2>Conference Attendance Statistics</h2>
             {attendance.length > 0 ? (
-              <table className="analytics-table">
+              <div className="analytics-table-wrap">
+                <table className="analytics-table">
                 <thead>
                   <tr>
                     <th>Conference Title</th>
@@ -153,23 +169,24 @@ function Analytics() {
                       <td>
                         <span className="attendance-rate">{item.attendanceRate}%</span>
                       </td>
-                      <td>{new Date(item.startDate).toLocaleDateString()}</td>
+                      <td>{formatDate(item.startDate || item.date)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
             ) : (
               <p className="no-data">No attendance data available</p>
             )}
           </div>
         )}
 
-        {/* Popular Conferences */}
         {activeTab === 'popular' && (
           <div className="table-section">
             <h2>Most Popular Conferences</h2>
             {popular.length > 0 ? (
-              <table className="analytics-table">
+              <div className="analytics-table-wrap">
+                <table className="analytics-table">
                 <thead>
                   <tr>
                     <th>Conference Title</th>
@@ -186,23 +203,24 @@ function Analytics() {
                         <span className="category-badge">{item.category}</span>
                       </td>
                       <td className="attendee-count">{item.attendees}</td>
-                      <td>{new Date(item.startDate).toLocaleDateString()}</td>
+                      <td>{formatDate(item.startDate || item.date)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
             ) : (
               <p className="no-data">No conference data available</p>
             )}
           </div>
         )}
 
-        {/* Top Participants */}
         {activeTab === 'participation' && (
           <div className="table-section">
             <h2>Most Active Participants</h2>
             {participation.length > 0 ? (
-              <table className="analytics-table">
+              <div className="analytics-table-wrap">
+                <table className="analytics-table">
                 <thead>
                   <tr>
                     <th>Rank</th>
@@ -224,13 +242,13 @@ function Analytics() {
                   ))}
                 </tbody>
               </table>
+              </div>
             ) : (
               <p className="no-data">No participation data available</p>
             )}
           </div>
         )}
 
-        {/* Overview */}
         {activeTab === 'overview' && (
           <div className="overview-section">
             <div className="overview-card">
@@ -238,23 +256,23 @@ function Analytics() {
               <ul className="overview-list">
                 <li>
                   <span className="label">Total Conferences Hosted:</span>
-                  <span className="value">{analytics?.totalConferences}</span>
+                  <span className="value">{analytics?.totalConferences || 0}</span>
                 </li>
                 <li>
                   <span className="label">Conferences in Last {analytics?.timeframe}:</span>
-                  <span className="value">{analytics?.recentConferences}</span>
+                  <span className="value">{analytics?.recentConferences || 0}</span>
                 </li>
                 <li>
                   <span className="label">Total Registrations:</span>
-                  <span className="value">{analytics?.totalRegistrations}</span>
+                  <span className="value">{analytics?.totalRegistrations || 0}</span>
                 </li>
                 <li>
                   <span className="label">Recent Registrations:</span>
-                  <span className="value">{analytics?.recentRegistrations}</span>
+                  <span className="value">{analytics?.recentRegistrations || 0}</span>
                 </li>
                 <li>
                   <span className="label">Active Participants:</span>
-                  <span className="value">{analytics?.totalAttendees}</span>
+                  <span className="value">{analytics?.totalAttendees || 0}</span>
                 </li>
               </ul>
             </div>
