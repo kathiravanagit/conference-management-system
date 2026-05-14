@@ -73,11 +73,6 @@ exports.generateCertificate = async (req, res, next) => {
     // Update registration
     registration.certificateGenerated = true;
     await registration.save();
-          },
-        ],
-      });
-    }
-
     // Send email
     await sendCertificateEmail(
       registration.userId.email,
