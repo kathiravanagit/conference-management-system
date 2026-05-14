@@ -42,15 +42,7 @@ exports.submitFeedback = async (req, res, next) => {
       comment,
       categories: categories || {},
     });
-        pointsHistory: [
-          {
-            conferenceId,
-            points,
-            reason: 'Feedback Submitted',
-          },
-        ],
-      });
-    }
+    
 
     res.status(201).json({
       success: true,
