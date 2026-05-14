@@ -8,7 +8,7 @@ import {
   FaVideo,
   FaCertificate,
   FaComments,
-  FaBarChart,
+  FaChartBar,
   FaStar,
   FaUserGraduate,
   FaChalkboardTeacher,

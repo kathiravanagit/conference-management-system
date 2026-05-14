@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaBarChart, FaTrophy, FaUsers, FaChartLine } from 'react-icons/fa';
+import { FaChartBar, FaTrophy, FaUsers, FaChartLine } from 'react-icons/fa';
 import api from '../../utils/api';
 import './Analytics.css';
 
@@ -50,7 +50,7 @@ function Analytics() {
   return (
     <div className="analytics-container">
       <h1 className="analytics-title">
-        <FaBarChart className="analytics-icon" />
+        <FaChartBar className="analytics-icon" />
         Conference Analytics & Reports
       </h1>
 

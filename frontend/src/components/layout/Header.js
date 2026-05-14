@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   FaHome,
   FaCalendar,
-  FaBarChart,
+  FaChartBar,
   FaTicketAlt,
   FaList,
   FaSignOutAlt,
@@ -138,7 +138,7 @@ const Header = () => {
               )}
 
               <Link to="/analytics" className={`nav-link ${isActive('/analytics') ? 'nav-active' : ''}`}>
-                <FaBarChart /> Analytics
+                <FaChartBar /> Analytics
               </Link>
 
               <div className="profile-menu" ref={menuRef}>
