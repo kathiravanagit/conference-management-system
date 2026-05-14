@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FaChartBar, FaTrophy, FaUsers, FaChartLine } from 'react-icons/fa';
-import api from '../../utils/api';
+import axios from 'axios';
 import './Analytics.css';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 function Analytics() {
   const [loading, setLoading] = useState(true);
@@ -20,10 +22,10 @@ function Analytics() {
     try {
       setLoading(true);
       const [overviewRes, attendanceRes, popularRes, participationRes] = await Promise.all([
-        api.get('/analytics'),
-        api.get('/analytics/attendance'),
-        api.get('/analytics/popular'),
-        api.get('/analytics/user-participation'),
+        axios.get(`${API_URL}/analytics`),
+        axios.get(`${API_URL}/analytics/attendance`),
+        axios.get(`${API_URL}/analytics/popular`),
+        axios.get(`${API_URL}/analytics/user-participation`),
       ]);
 
       setAnalytics(overviewRes.data.analytics);

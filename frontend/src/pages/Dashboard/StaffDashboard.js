@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import {
   certificateAPI,
   qaAPI,
@@ -7,7 +8,6 @@ import {
   conferenceAPI,
   attendanceAPI,
 } from '../../utils/api';
-import api from '../../utils/api';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import Loading from '../../components/ui/Loading';
 import { formatDate, formatTime, handleApiError } from '../../utils/helpers';
@@ -41,7 +41,8 @@ const StaffDashboard = () => {
       
       // Load top participants from analytics
       try {
-        const analyticsRes = await api.get('/analytics/user-participation?limit=5');
+        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+        const analyticsRes = await axios.get(`${API_URL}/analytics/user-participation?limit=5`);
         setTopParticipants(analyticsRes.data.data || []);
       } catch (analyticsError) {
         console.error('Failed to load analytics:', analyticsError);
