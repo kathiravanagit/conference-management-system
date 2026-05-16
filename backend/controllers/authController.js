@@ -829,6 +829,7 @@ exports.changePassword = async (req, res) => {
 exports.googleLogin = async (req, res, next) => {
   try {
     const { credential } = req.body;
+    console.log('[Google Auth] Received credential (length):', credential?.length);
 
     if (!credential) {
       return res.status(400).json({
@@ -844,15 +845,19 @@ exports.googleLogin = async (req, res, next) => {
     const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: `Bearer ${credential}` }
     });
+    console.log('[Google Auth] Google API response status:', response.status);
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Google Auth] Google API error:', response.status, errorText);
       return res.status(401).json({
         success: false,
-        message: 'Invalid Google token',
+        message: `Invalid Google token: ${response.status}`,
       });
     }
 
     const payload = await response.json();
+    console.log('[Google Auth] User profile retrieved:', payload.email);
     const { email, name, picture } = payload;
 
     let user = await User.findOne({ email }).select('+password');
