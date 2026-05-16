@@ -4,14 +4,6 @@ import io from 'socket.io-client';
 import DOMPurify from 'dompurify';
 import { useAuth } from '../../context/AuthContext';
 import { conferenceAPI } from '../../utils/api';
-
-// Utility to sanitize message text for safe display
-const sanitizeMessageText = (text) => {
-    if (typeof text !== 'string') return '';
-    // Strip all HTML tags and dangerous content
-    const sanitized = DOMPurify.sanitize(text, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
-    return sanitized;
-};
 import {
     FaMicrophone,
     FaMicrophoneSlash,
@@ -35,6 +27,14 @@ import {
     FaChevronUp,
 } from 'react-icons/fa';
 import './VideoMeeting.css';
+
+// Utility to sanitize message text for safe display
+const sanitizeMessageText = (text) => {
+    if (typeof text !== 'string') return '';
+    // Strip all HTML tags and dangerous content
+    const sanitized = DOMPurify.sanitize(text, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+    return sanitized;
+};
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const SOCKET_URL = API_URL.replace('/api', '');
