@@ -30,7 +30,8 @@ exports.generateCSRFToken = (req, res, next) => {
     res.cookie('X-CSRF-Token', token, {
       httpOnly: false, // Client-side JS needs to read this
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      // Allow SPA to read/send the CSRF cookie in dev; use 'none' with secure in production
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: CSRF_TOKEN_EXPIRY,
     });
 
@@ -65,6 +66,11 @@ exports.validateCSRFToken = (req, res, next) => {
     ];
 
     if (publicEndpoints.includes(req.path)) {
+      return next();
+    }
+
+    // Allow debug routes in non-production for easier local testing
+    if (process.env.NODE_ENV !== 'production' && req.path && req.path.startsWith('/api/debug')) {
       return next();
     }
 

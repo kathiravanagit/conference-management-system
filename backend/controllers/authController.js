@@ -12,6 +12,7 @@ const {
 const { OAuth2Client } = require('google-auth-library');
 const crypto = require('crypto');
 const { createAuditLog } = require('../services/auditLogService');
+const { generateCSRFToken } = require('../middleware/csrf');
 const {
   generateTwoFactorSecret,
   generateQRCode,
@@ -209,9 +210,18 @@ exports.login = async (req, res, next) => {
     res.cookie('authToken', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      // Use 'lax' in development to allow top-level POSTs from the SPA.
+      // In production (cross-site), set to 'none' and require secure.
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge,
     });
+
+    // Also generate and send a CSRF token (sets header + cookie)
+    try {
+      generateCSRFToken(req, res, () => {});
+    } catch (e) {
+      // Non-fatal: continue without blocking login
+    }
 
     res.status(200).json({
       success: true,

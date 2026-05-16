@@ -135,7 +135,7 @@ export const qaAPI = {
  * Staff API calls
  */
 export const staffAPI = {
-  getDashboard: () => axios.get(`${API_URL}/staff/dashboard`),
+  getDashboard: () => axios.get(`${API_URL}/staff/dashboard`, { withCredentials: true }),
 };
 
 /**

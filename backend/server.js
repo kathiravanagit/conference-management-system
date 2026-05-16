@@ -50,7 +50,8 @@ app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  // Allow CSRF header and cookies for cross-origin requests
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With', 'Cookie'],
 }));
 app.use(securityHeaders);
 app.use(attachRequestContext);
@@ -102,6 +103,8 @@ app.use('/api/staff', require('./routes/staff'));
 app.use('/api/assistant', require('./routes/assistant'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/admin', require('./routes/admin'));
+
+// Development-only debug routes were removed before deploy
 
 
 

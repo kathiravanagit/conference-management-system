@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import {
   certificateAPI,
   qaAPI,
@@ -41,9 +40,8 @@ const StaffDashboard = () => {
 
       // Load top participants from analytics
       try {
-        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-        const analyticsRes = await axios.get(`${API_URL}/analytics/user-participation?limit=5`);
-        setTopParticipants(analyticsRes.data.data || []);
+        const analyticsRes = await import('../../utils/api').then((m) => m.analyticsAPI.getUserParticipation({ limit: 5 }));
+        setTopParticipants(analyticsRes.data?.data || []);
       } catch (analyticsError) {
         console.error('Failed to load analytics:', analyticsError);
       }
