@@ -128,15 +128,18 @@ const VirtualAssistant = () => {
                 let csrf = getCookie('X-CSRF-Token');
                 if (!csrf) {
                     try {
-                        await axios.get('/api/assistant/suggestions');
+                        const sugRes = await axios.get('/api/assistant/suggestions', { withCredentials: true });
+                        // debug: log headers and cookie presence
+                        console.debug('Assistant suggestions response headers:', sugRes?.headers);
                         csrf = getCookie('X-CSRF-Token');
+                        console.debug('CSRF after suggestions fetch:', csrf, 'document.cookie:', document.cookie);
                     } catch (err) {
                         console.error('Failed to fetch CSRF token:', err);
                     }
                 }
 
                 // Make the assistant request
-                const res = await axios.post('/api/assistant/ask', { question: q });
+                const res = await axios.post('/api/assistant/ask', { question: q }, { withCredentials: true });
                 setMessages((prev) => [
                     ...prev,
                     { from: 'bot', text: res.data.answer, category: res.data.category, time: new Date() },
@@ -144,8 +147,8 @@ const VirtualAssistant = () => {
         } catch {
                 // Try once more: attempt to fetch CSRF token then retry request
                 try {
-                    await axios.get('/api/assistant/suggestions');
-                    const retry = await axios.post('/api/assistant/ask', { question: q });
+                    await axios.get('/api/assistant/suggestions', { withCredentials: true });
+                    const retry = await axios.post('/api/assistant/ask', { question: q }, { withCredentials: true });
                     setMessages((prev) => [
                         ...prev,
                         { from: 'bot', text: retry.data.answer, category: retry.data.category, time: new Date() },
