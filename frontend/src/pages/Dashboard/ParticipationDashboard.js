@@ -18,6 +18,7 @@ const ParticipationDashboard = () => {
     totalCertificates: 0,
     currentPoints: 0,
   });
+  const [nextConference, setNextConference] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all'); // all, registered, attended, certified
@@ -52,6 +53,14 @@ const ParticipationDashboard = () => {
         totalCertificates: certificates.length,
         currentPoints: user?.participationCount || 0,
       };
+      // Determine next upcoming conference from registrations
+      const upcoming = registrations
+        .map((r) => r.conferenceId)
+        .filter(Boolean)
+        .filter((c) => new Date(c.date) > new Date())
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      setNextConference(upcoming.length ? upcoming[0] : null);
       setStats(stats);
       setError('');
     } catch (err) {
@@ -160,8 +169,11 @@ const ParticipationDashboard = () => {
           <div className="stat-card">
             <div className="stat-icon stat-icon--pts">◆</div>
             <div className="stat-content">
-              <p className="stat-label">Points</p>
-              <p className="stat-number">{stats.currentPoints}</p>
+              <p className="stat-label">Next Conference</p>
+              <p className="stat-number">{nextConference ? nextConference.title : '—'}</p>
+              {nextConference && (
+                <p className="stat-sub">{formatDate(nextConference.date)}</p>
+              )}
             </div>
           </div>
         </div>
