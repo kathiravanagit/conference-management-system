@@ -25,11 +25,19 @@ const Register = () => {
   const redirectPath = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/conferences';
 
   const handleGoogleLogin = useGoogleLogin({
+    flow: 'implicit',
     onSuccess: async (tokenResponse) => {
       setError('');
       setLoading(true);
+      console.log('[Google Register] Token received, has credential:', !!tokenResponse.credential);
       try {
-        const result = await googleLogin(tokenResponse.access_token);
+        const credential = tokenResponse.credential || tokenResponse.access_token;
+        if (!credential) {
+          setError('No credential received from Google');
+          setLoading(false);
+          return;
+        }
+        const result = await googleLogin(credential);
         if (result?.requires2FA) {
           // Since it's register we probably don't have 2FA yet, but just in case
           navigate('/login', {
@@ -42,10 +50,15 @@ const Register = () => {
         }
         navigate(redirectPath);
       } catch (err) {
+        console.error('[Google Register] Error:', err.response?.data || err.message);
         setError(err.response?.data?.message || 'Google signup failed');
       } finally {
         setLoading(false);
       }
+    },
+    onError: () => {
+      setError('Google signup failed. Please try again.');
+      setLoading(false);
     }
   });
 

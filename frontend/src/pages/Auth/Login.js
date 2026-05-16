@@ -25,11 +25,19 @@ const Login = () => {
   const redirectPath = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/conferences';
 
   const handleGoogleLogin = useGoogleLogin({
+    flow: 'implicit',
     onSuccess: async (tokenResponse) => {
       setError('');
       setLoading(true);
+      console.log('[Google Login] Token received, credential type:', typeof tokenResponse.credential ? 'credential' : 'access_token');
       try {
-        const result = await googleLogin(tokenResponse.access_token);
+        const credential = tokenResponse.credential || tokenResponse.access_token;
+        if (!credential) {
+          setError('No credential received from Google');
+          setLoading(false);
+          return;
+        }
+        const result = await googleLogin(credential);
         if (result?.requires2FA) {
           setRequires2FA(true);
           setTwoFactorToken(result.twoFactorToken);
@@ -38,10 +46,15 @@ const Login = () => {
         }
         navigate(redirectPath);
       } catch (err) {
+        console.error('[Google Login] Error:', err.response?.data || err.message);
         setError(err.response?.data?.message || 'Google login failed');
       } finally {
         setLoading(false);
       }
+    },
+    onError: () => {
+      setError('Google login failed. Please try again.');
+      setLoading(false);
     }
   });
 

@@ -840,25 +840,39 @@ exports.googleLogin = async (req, res, next) => {
 
     const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'dummy-client-id');
 
-    // Instead of verifying id_token which requires a specific oauth flow, we verify access_token 
-    // by fetching the user profile securely from Google
-    const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${credential}` }
-    });
-    console.log('[Google Auth] Google API response status:', response.status);
+    // Accept either an ID token (JWT) or an access token.
+    let payload = null;
+    try {
+      if (typeof credential === 'string' && credential.split('.').length === 3) {
+        // Looks like an ID token (JWT) — verify it
+        console.log('[Google Auth] Detected ID token, verifying with google-auth-library');
+        const ticket = await client.verifyIdToken({ idToken: credential, audience: process.env.GOOGLE_CLIENT_ID });
+        payload = ticket.getPayload();
+      } else {
+        // Treat as access token — fetch userinfo
+        console.log('[Google Auth] Treating credential as access token, fetching userinfo');
+        const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${credential}` }
+        });
+        console.log('[Google Auth] Google API response status:', response.status);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[Google Auth] Google API error:', response.status, errorText);
-      return res.status(401).json({
-        success: false,
-        message: `Invalid Google token: ${response.status}`,
-      });
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('[Google Auth] Google API error:', response.status, errorText);
+          return res.status(401).json({
+            success: false,
+            message: `Invalid Google token: ${response.status}`,
+          });
+        }
+
+        payload = await response.json();
+      }
+    } catch (err) {
+      console.error('[Google Auth] Token verification/fetch failed:', err);
+      return res.status(401).json({ success: false, message: 'Invalid Google credentials' });
     }
-
-    const payload = await response.json();
     console.log('[Google Auth] User profile retrieved:', payload.email);
-    const { email, name, picture } = payload;
+    const { email, name, picture } = payload || {};
 
     let user = await User.findOne({ email }).select('+password');
 
