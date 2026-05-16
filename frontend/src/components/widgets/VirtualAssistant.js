@@ -60,9 +60,9 @@ const VirtualAssistant = () => {
     const inputRef = useRef(null);
 
     useEffect(() => {
-        axios.get('/api/assistant/suggestions')
+        axios.get('/api/assistant/suggestions', { withCredentials: true })
             .then((res) => { if (res.data.success) setSuggestions(res.data.suggestions.slice(0, 5)); })
-            .catch(() => { });
+            .catch((err) => { console.debug('Failed to prefetch suggestions:', err?.response?.data || err.message); });
     }, []);
 
     useEffect(() => {
@@ -155,9 +155,10 @@ const VirtualAssistant = () => {
                     ]);
                 } catch (err) {
                     console.error('Assistant request failed:', err);
+                    const serverMsg = err?.response?.data?.message || err?.response?.data?.error || null;
                     setMessages((prev) => [
                         ...prev,
-                        { from: 'bot', text: 'Connection error. Please try again shortly.', time: new Date() },
+                        { from: 'bot', text: serverMsg || 'Connection error. Please try again shortly.', time: new Date() },
                     ]);
                 }
         } finally {

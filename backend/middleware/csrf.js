@@ -63,6 +63,7 @@ exports.validateCSRFToken = (req, res, next) => {
       '/api/auth/reset-password',
       '/api/auth/confirm-login',
       '/api/auth/google',
+      '/api/assistant/ask',
     ];
 
     if (publicEndpoints.includes(req.path)) {
