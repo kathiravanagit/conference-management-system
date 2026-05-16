@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import Loading from '../../components/ui/Loading';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import './ParticipationDashboard.css';
+import { FaClipboardList, FaCheckCircle, FaAward, FaCalendarAlt } from 'react-icons/fa';
 
 const ParticipationDashboard = () => {
   const navigate = useNavigate();
@@ -143,7 +144,9 @@ const ParticipationDashboard = () => {
         {/* Statistics Cards */}
         <div className="stats-grid">
           <div className="stat-card">
-            <div className="stat-icon stat-icon--reg">▤</div>
+            <div className="stat-icon stat-icon--reg">
+              <FaClipboardList aria-hidden="true" className="stat-svg" />
+            </div>
             <div className="stat-content">
               <p className="stat-label">Registered For</p>
               <p className="stat-number">{stats.totalRegistered}</p>
@@ -151,7 +154,9 @@ const ParticipationDashboard = () => {
           </div>
 
           <div className="stat-card">
-            <div className="stat-icon stat-icon--att">✓</div>
+            <div className="stat-icon stat-icon--att">
+              <FaCheckCircle aria-hidden="true" className="stat-svg" />
+            </div>
             <div className="stat-content">
               <p className="stat-label">Attended</p>
               <p className="stat-number">{stats.totalAttended}</p>
@@ -159,7 +164,9 @@ const ParticipationDashboard = () => {
           </div>
 
           <div className="stat-card">
-            <div className="stat-icon stat-icon--cert">◈</div>
+            <div className="stat-icon stat-icon--cert">
+              <FaAward aria-hidden="true" className="stat-svg" />
+            </div>
             <div className="stat-content">
               <p className="stat-label">Certificates</p>
               <p className="stat-number">{stats.totalCertificates}</p>
@@ -167,7 +174,9 @@ const ParticipationDashboard = () => {
           </div>
 
           <div className="stat-card">
-            <div className="stat-icon stat-icon--pts">◆</div>
+            <div className="stat-icon stat-icon--pts">
+              <FaCalendarAlt aria-hidden="true" className="stat-svg" />
+            </div>
             <div className="stat-content">
               <p className="stat-label">Next Conference</p>
               <p className="stat-number">{nextConference ? nextConference.title : '—'}</p>
