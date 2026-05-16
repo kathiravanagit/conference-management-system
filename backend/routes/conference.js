@@ -17,6 +17,7 @@ const {
 } = require('../controllers/conferenceController');
 const { protect, authorize, require2FAComplete } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { validateConferenceCreation, validateMongoId } = require('../middleware/advancedValidation');
 
 const recordingsDir = path.join(process.cwd(), 'uploads', 'recordings');
 if (!fs.existsSync(recordingsDir)) {
@@ -68,9 +69,9 @@ router.get('/:id/recordings', protect, getRecordings);
 router.post('/:id/recordings', protect, recordingUpload.single('recording'), uploadRecording);
 
 // Staff/Admin protected routes
-router.post('/', protect, require2FAComplete, authorize('admin', 'staff'), createConference);
-router.put('/:id', protect, require2FAComplete, authorize('admin', 'staff'), updateConference);
-router.delete('/:id', protect, require2FAComplete, authorize('admin', 'staff'), deleteConference);
+router.post('/', protect, require2FAComplete, authorize('admin', 'staff'), validateConferenceCreation, createConference);
+router.put('/:id', protect, require2FAComplete, authorize('admin', 'staff'), validateMongoId, updateConference);
+router.delete('/:id', protect, require2FAComplete, authorize('admin', 'staff'), validateMongoId, deleteConference);
 router.put(
   '/:id/poster',
   protect,

@@ -7,7 +7,12 @@ const jwt = require('jsonwebtoken');
 exports.protect = async (req, res, next) => {
   let token;
 
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+  // Try to get token from httpOnly cookie first (secure)
+  if (req.cookies?.authToken) {
+    token = req.cookies.authToken;
+  }
+  // Fall back to Authorization header (for tools like Postman, socket.io)
+  else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
   }
 

@@ -62,17 +62,33 @@ exports.generateCertificate = async (req, res, next) => {
       2
     );
 
-    const certificate = await Certificate.create({
-      userId: registration.userId._id,
-      conferenceId: registration.conferenceId._id,
-      certificateUrl: certificatePath,
-      certificateNumber,
-      attendanceHours: 2,
-    });
+    let certificate;
+    try {
+      certificate = await Certificate.create({
+        userId: registration.userId._id,
+        conferenceId: registration.conferenceId._id,
+        certificateUrl: certificatePath,
+        certificateNumber,
+        attendanceHours: 2,
+      });
 
-    // Update registration
-    registration.certificateGenerated = true;
-    await registration.save();
+      // Update registration
+      registration.certificateGenerated = true;
+      await registration.save();
+    } catch (err) {
+      // Handle duplicate-key race where another process created the certificate concurrently
+      if (err && err.code === 11000) {
+        certificate = await Certificate.findOne({
+          userId: registration.userId._id,
+          conferenceId: registration.conferenceId._id,
+        });
+        if (!certificate) {
+          return res.status(500).json({ success: false, message: 'Certificate conflict occurred' });
+        }
+      } else {
+        throw err;
+      }
+    }
     // Send email
     await sendCertificateEmail(
       registration.userId.email,

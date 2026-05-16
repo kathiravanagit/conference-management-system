@@ -9,6 +9,8 @@ const cors = require('cors');
 const http = require('http');
 const socketIO = require('socket.io');
 const axios = require('axios');
+const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const connectDB = require('./config/database');
@@ -16,6 +18,8 @@ const { errorHandler } = require('./middleware/error');
 const { attachRequestContext, logRequestLifecycle } = require('./middleware/requestContext');
 const { securityHeaders } = require('./middleware/securityHeaders');
 const setupSocketIO = require('./sockets/socketHandler');
+const { socketAuthMiddleware } = require('./sockets/socketAuth');
+const { validateCSRFToken, cleanupExpiredTokens } = require('./middleware/csrf');
 
 // Initialize express app (must be before any app.* usage)
 const app = express();
@@ -33,18 +37,51 @@ const io = socketIO(server, {
   cors: {
     origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
     methods: ['GET', 'POST'],
+    credentials: true,
   },
 });
 
+// Apply Socket.io authentication middleware
+io.use(socketAuthMiddleware);
+
 // Middleware
 app.disable('x-powered-by');
-app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:3000' }));
+app.use(cors({ 
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(securityHeaders);
 app.use(attachRequestContext);
 app.use(logRequestLifecycle);
 app.use(express.json({ limit: '1mb' }));
+app.use(cookieParser());
 app.use(express.static('uploads'));
 app.use('/uploads', express.static('uploads'));
+
+// Rate limiting middleware
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: 'Too many login attempts, please try again later.',
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+});
+
+app.use('/api/', generalLimiter);
+
+// CSRF Protection
+app.use(validateCSRFToken); // Validate CSRF tokens on state-changing requests
+cleanupExpiredTokens(); // Start cleanup routine for expired CSRF tokens
 
 // Connect to MongoDB
 connectDB();
@@ -53,7 +90,7 @@ connectDB();
 setupSocketIO(io);
 
 // Routes
-app.use('/api/auth', require('./routes/auth'));
+app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/conferences', require('./routes/conference'));
 app.use('/api/registrations', require('./routes/registration'));
 app.use('/api/certificates', require('./routes/certificate'));

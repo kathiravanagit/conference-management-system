@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 
 axios.defaults.baseURL = process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:5000';
+axios.defaults.withCredentials = true; // Enable cookies in cross-origin requests
 
 const AuthContext = createContext();
 
@@ -16,32 +17,21 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('token'));
-
-  // Setup axios default headers
-  useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    }
-  }, [token]);
 
   // Check if user is logged in on mount
   useEffect(() => {
     const checkAuth = async () => {
-      if (token) {
-        try {
-          const response = await axios.get('/api/auth/me');
-          setUser(response.data.user);
-        } catch (error) {
-          setToken(null);
-          localStorage.removeItem('token');
-        }
+      try {
+        const response = await axios.get('/api/auth/me');
+        setUser(response.data.user);
+      } catch (error) {
+        // Not authenticated
       }
       setLoading(false);
     };
 
     checkAuth();
-  }, [token]);
+  }, []);
 
   const login = async (email, password, rememberMe = true) => {
     try {
@@ -54,10 +44,7 @@ export const AuthProvider = ({ children }) => {
         return response.data;
       }
 
-      setToken(response.data.token);
       setUser(response.data.user);
-      localStorage.setItem('token', response.data.token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
       return response.data;
     } catch (error) {
       throw error;
@@ -71,10 +58,7 @@ export const AuthProvider = ({ children }) => {
         return response.data;
       }
 
-      setToken(response.data.token);
       setUser(response.data.user);
-      localStorage.setItem('token', response.data.token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
       return response.data;
     } catch (error) {
       throw error;
@@ -103,10 +87,7 @@ export const AuthProvider = ({ children }) => {
         return response.data;
       }
 
-      setToken(response.data.token);
       setUser(response.data.user);
-      localStorage.setItem('token', response.data.token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
       return response.data.user;
     } catch (error) {
       throw error;
@@ -122,10 +103,7 @@ export const AuthProvider = ({ children }) => {
         },
       });
 
-      setToken(response.data.token);
       setUser(response.data.user);
-      localStorage.setItem('token', response.data.token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
       return response.data.user;
     } catch (error) {
       throw error;
@@ -187,16 +165,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await axios.post('/api/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     setUser(null);
-    setToken(null);
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
   };
 
   const value = {
     user,
-    token,
     loading,
     login,
     googleLogin,
@@ -209,7 +188,7 @@ export const AuthProvider = ({ children }) => {
     changePassword,
     deleteAccount,
     logout,
-    isAuthenticated: !!token,
+    isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
     isStaff: user?.role === 'staff',
     canManageEvents: ['admin', 'staff'].includes(user?.role),

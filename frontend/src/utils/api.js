@@ -2,6 +2,26 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
+// Ensure cookies are sent with requests (httpOnly auth cookie, CSRF token cookie)
+axios.defaults.withCredentials = true;
+
+// Helper to read a cookie by name
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  if (match) return decodeURIComponent(match[2]);
+  return null;
+}
+
+// Attach CSRF token header for non-GET requests
+axios.interceptors.request.use((config) => {
+  const method = (config.method || 'get').toLowerCase();
+  if (!['get', 'head', 'options'].includes(method)) {
+    const csrf = getCookie('X-CSRF-Token') || '';
+    if (csrf) config.headers['X-CSRF-Token'] = csrf;
+  }
+  return config;
+}, (error) => Promise.reject(error));
+
 /**
  * Conference API calls
  */

@@ -204,9 +204,18 @@ exports.login = async (req, res, next) => {
       userAgent: req.get('user-agent'),
     });
 
+    // Set httpOnly cookie instead of returning token in body
+    const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge,
+    });
+
     res.status(200).json({
       success: true,
-      token,
+      message: 'Login successful',
       user: {
         id: user._id,
         name: user.name,
@@ -965,6 +974,39 @@ exports.deleteAccount = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete account: ' + error.message,
+    });
+  }
+};
+
+/**
+ * Logout User
+ * POST /api/auth/logout
+ */
+exports.logout = async (req, res) => {
+  try {
+    await createAuditLog({
+      userId: req.user?.id,
+      action: 'LOGOUT',
+      email: req.user?.email,
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
+    // Clear the httpOnly auth cookie
+    res.clearCookie('authToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Logout failed: ' + error.message,
     });
   }
 };

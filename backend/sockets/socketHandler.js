@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
+const xss = require('xss');
 const QAChat = require('../models/QAChat');
 const Conference = require('../models/Conference');
 const MeetingChat = require('../models/MeetingChat');
@@ -49,10 +50,18 @@ const cleanupVideoRoomState = (io, roomId) => {
   }
 };
 
-const sanitizeChatText = (value = '') =>
-  String(value)
+const sanitizeChatText = (value = '') => {
+  // First remove XSS attempts
+  const xssSanitized = xss(String(value), {
+    whiteList: {},
+    stripIgnoredTag: true,
+    stripLeakingHtml: true,
+  });
+  // Then normalize whitespace
+  return xssSanitized
     .replace(/\s+/g, ' ')
     .trim();
+};
 
 const normalizeDisplayName = (value = '') => {
   const cleaned = String(value)

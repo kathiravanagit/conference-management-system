@@ -14,6 +14,7 @@ const {
 const { protect, require2FAComplete } = require('../middleware/auth');
 const { qaPostLimiter, qaReplyLimiter } = require('../middleware/rateLimit');
 const { validateQAPostPayload, validateQAReplyPayload } = require('../middleware/validation');
+const { sanitizeFields } = require('../middleware/sanitize');
 
 /**
  * Q&A Routes
@@ -21,11 +22,11 @@ const { validateQAPostPayload, validateQAReplyPayload } = require('../middleware
 
 // Public/Protected routes
 router.get('/:conferenceId', getConferenceQA);
-router.post('/', protect, require2FAComplete, qaPostLimiter, validateQAPostPayload, postMessage);
+router.post('/', protect, require2FAComplete, qaPostLimiter, validateQAPostPayload, sanitizeFields('message'), postMessage);
 
 // Protected student routes
 router.put('/:id/like', protect, require2FAComplete, likeMessage);
-router.post('/:id/reply', protect, require2FAComplete, qaReplyLimiter, validateQAReplyPayload, replyToMessage);
+router.post('/:id/reply', protect, require2FAComplete, qaReplyLimiter, validateQAReplyPayload, sanitizeFields('message'), replyToMessage);
 router.delete('/:id', protect, require2FAComplete, deleteMessage);
 
 module.exports = router;

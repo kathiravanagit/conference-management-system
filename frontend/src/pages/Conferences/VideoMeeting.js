@@ -1,8 +1,17 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import io from 'socket.io-client';
+import DOMPurify from 'dompurify';
 import { useAuth } from '../../context/AuthContext';
 import { conferenceAPI } from '../../utils/api';
+
+// Utility to sanitize message text for safe display
+const sanitizeMessageText = (text) => {
+    if (typeof text !== 'string') return '';
+    // Strip all HTML tags and dangerous content
+    const sanitized = DOMPurify.sanitize(text, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+    return sanitized;
+};
 import {
     FaMicrophone,
     FaMicrophoneSlash,
@@ -639,7 +648,7 @@ const VideoMeeting = () => {
                 socketRef.current = null;
             }
 
-            const socket = io(SOCKET_URL, { transports: ['websocket'] });
+            const socket = io(SOCKET_URL, { transports: ['websocket'], withCredentials: true });
             socketRef.current = socket;
             setupSocketListeners(stream, isHost);
         };
@@ -1445,10 +1454,10 @@ const VideoMeeting = () => {
                                     {chatMessages.map((message) => (
                                         <div key={message.id} className="meeting-chat-item">
                                             <div className="meeting-chat-head">
-                                                <strong>{message.author} {message.isPrivate ? '(Private)' : ''}</strong>
+                                                <strong>{sanitizeMessageText(message.author)} {message.isPrivate ? '(Private)' : ''}</strong>
                                                 <span>{new Date(message.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                             </div>
-                                            <p>{message.text}</p>
+                                            <p>{sanitizeMessageText(message.text)}</p>
                                         </div>
                                     ))}
                                     <div ref={chatEndRef} />

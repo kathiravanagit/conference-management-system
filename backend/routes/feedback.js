@@ -12,15 +12,16 @@ const {
   deleteFeedback,
 } = require('../controllers/feedbackController');
 const { protect, authorize, require2FAComplete } = require('../middleware/auth');
+const { sanitizeFields } = require('../middleware/sanitize');
 
 /**
  * Feedback Routes
  */
 
 // Student routes
-router.post('/', protect, require2FAComplete, submitFeedback);
+router.post('/', protect, require2FAComplete, sanitizeFields('title', 'feedback'), submitFeedback);
 router.get('/my', protect, require2FAComplete, getMyFeedback);
-router.put('/:id', protect, require2FAComplete, updateFeedback);
+router.put('/:id', protect, require2FAComplete, sanitizeFields('title', 'feedback'), updateFeedback);
 router.delete('/:id', protect, require2FAComplete, deleteFeedback);
 
 // Admin/Public routes

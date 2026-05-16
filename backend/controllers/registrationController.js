@@ -65,29 +65,38 @@ const registerForConference = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'This conference has been cancelled.' });
     }
 
-    // Check if already registered
+    // Prevent duplicate registrations using the unique index
     const existingRegistration = await Registration.findOne({ userId: req.user.id, conferenceId });
     if (existingRegistration) {
       return res.status(409).json({ success: false, message: 'Already registered for this conference' });
     }
 
-    // Count confirmed (non-cancelled, non-waitlisted) registrations
-    const confirmedCount = await Registration.countDocuments({
-      conferenceId,
-      status: { $in: ['registered', 'attended'] },
-    });
+    // Try to atomically reserve a seat by incrementing `attendeeCount` if there's room
+    let reservedSeat = false;
+    let updatedConference = await Conference.findOneAndUpdate(
+      { _id: conferenceId, $expr: { $lt: ['$attendeeCount', '$maxAttendees'] } },
+      { $inc: { attendeeCount: 1 } },
+      { new: true }
+    );
 
-    const isFull = confirmedCount >= conference.maxAttendees;
+    const isFull = !updatedConference;
     const ticketNumber = generateTicketNumber();
 
-    const registration = await Registration.create({
-      userId: req.user.id,
-      conferenceId,
-      ticketNumber,
-      status: isFull ? 'waitlisted' : 'registered',
-    });
-
-    if (!isFull) {
+    let registration;
+    try {
+      registration = await Registration.create({
+        userId: req.user.id,
+        conferenceId,
+        ticketNumber,
+        status: isFull ? 'waitlisted' : 'registered',
+      });
+      reservedSeat = !isFull;
+    } catch (err) {
+      // If registration creation failed after we reserved a seat, rollback the attendeeCount
+      if (!isFull && updatedConference) {
+        await Conference.findByIdAndUpdate(conferenceId, { $inc: { attendeeCount: -1 } });
+      }
+      throw err;
     }
 
     // Send confirmation email
@@ -146,7 +155,10 @@ const cancelRegistration = async (req, res, next) => {
 
     // Deduct points if was confirmed
     if (wasRegistered) {
-      // Auto-promote first waitlisted student
+      // Decrement attendeeCount atomically
+      await Conference.findByIdAndUpdate(registration.conferenceId._id, { $inc: { attendeeCount: -1 } });
+
+      // Auto-promote first waitlisted student (attempt to atomically claim the freed seat)
       const nextInLine = await Registration.findOne({
         conferenceId: registration.conferenceId._id,
         status: 'waitlisted',
@@ -155,23 +167,32 @@ const cancelRegistration = async (req, res, next) => {
         .populate('userId', 'name email');
 
       if (nextInLine) {
-        nextInLine.status = 'registered';
-        await nextInLine.save();
-        // Notify them by email
-        await sendWaitlistPromotionEmail(
-          nextInLine.userId.email,
-          nextInLine.userId.name,
-          registration.conferenceId.title
+        // Try to increment attendeeCount only if still below max
+        const promoted = await Conference.findOneAndUpdate(
+          { _id: registration.conferenceId._id, $expr: { $lt: ['$attendeeCount', '$maxAttendees'] } },
+          { $inc: { attendeeCount: 1 } },
+          { new: true }
         );
-        // In-app notification
-        await Notification.create({
-          userId: nextInLine.userId._id,
-          type: 'registration',
-          title: 'Waitlist — Spot Confirmed!',
-          message: `A spot opened up for ${registration.conferenceId.title}. You are now registered!`,
-          relatedId: registration.conferenceId._id,
-          read: false,
-        });
+
+        if (promoted) {
+          nextInLine.status = 'registered';
+          await nextInLine.save();
+          // Notify them by email
+          await sendWaitlistPromotionEmail(
+            nextInLine.userId.email,
+            nextInLine.userId.name,
+            registration.conferenceId.title
+          );
+          // In-app notification
+          await Notification.create({
+            userId: nextInLine.userId._id,
+            type: 'registration',
+            title: 'Waitlist — Spot Confirmed!',
+            message: `A spot opened up for ${registration.conferenceId.title}. You are now registered!`,
+            relatedId: registration.conferenceId._id,
+            read: false,
+          });
+        }
       }
     }
 

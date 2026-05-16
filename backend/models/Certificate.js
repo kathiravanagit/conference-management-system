@@ -36,4 +36,7 @@ const certificateSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Prevent duplicate certificates for the same user+conference
+certificateSchema.index({ userId: 1, conferenceId: 1 }, { unique: true });
+
 module.exports = mongoose.model('Certificate', certificateSchema);

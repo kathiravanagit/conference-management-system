@@ -19,6 +19,7 @@ const {
   changePassword,
   googleLogin,
   deleteAccount,
+  logout,
 } = require('../controllers/authController');
 const { protect, require2FAComplete } = require('../middleware/auth');
 const {
@@ -53,5 +54,6 @@ router.get('/me', protect, require2FAComplete, getMe);
 router.put('/updateprofile', protect, require2FAComplete, updateProfile);
 router.put('/change-password', protect, require2FAComplete, changePassword);
 router.delete('/delete-account', protect, require2FAComplete, deleteAccount);
+router.post('/logout', logout);
 
 module.exports = router;
