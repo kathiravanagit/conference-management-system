@@ -29,7 +29,7 @@ const Login = () => {
     onSuccess: async (tokenResponse) => {
       setError('');
       setLoading(true);
-      console.log('[Google Login] Token received, credential type:', typeof tokenResponse.credential ? 'credential' : 'access_token');
+      console.log('[Google Login] Token received, tokenResponse:', tokenResponse);
       try {
         const credential = tokenResponse.credential || tokenResponse.access_token;
         if (!credential) {
@@ -245,7 +245,15 @@ const Login = () => {
             <button
               type="button"
               className="google-btn"
-              onClick={() => handleGoogleLogin()}
+              onClick={() => {
+                console.debug('[Login] Google button clicked');
+                try {
+                  handleGoogleLogin();
+                } catch (e) {
+                  console.error('[Login] handleGoogleLogin threw:', e);
+                  setError('Google sign-in failed to start. Check popup blockers.');
+                }
+              }}
             >
               <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" />
               Continue with Google

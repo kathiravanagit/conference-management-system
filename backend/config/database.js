@@ -14,7 +14,10 @@ const connectDB = async () => {
     return conn;
   } catch (error) {
     console.error(`Error connecting to MongoDB: ${error.message}`);
-    process.exit(1);
+    console.error('Continuing without DB connection for local/debug testing.');
+    // Do NOT exit process here to allow local testing of auth flows when Atlas is unreachable.
+    // Return null so callers can detect missing connection if needed.
+    return null;
   }
 };
 
