@@ -119,16 +119,44 @@ const VirtualAssistant = () => {
         }
 
         try {
-            const res = await axios.post('/api/assistant/ask', { question: q });
-            setMessages((prev) => [
-                ...prev,
-                { from: 'bot', text: res.data.answer, category: res.data.category, time: new Date() },
-            ]);
+                // Ensure CSRF token is present for POST requests. If missing, fetch suggestions to get a token, then retry once.
+                const getCookie = (name) => {
+                    const m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+                    return m ? decodeURIComponent(m[2]) : null;
+                };
+
+                let csrf = getCookie('X-CSRF-Token');
+                if (!csrf) {
+                    try {
+                        await axios.get('/api/assistant/suggestions');
+                        csrf = getCookie('X-CSRF-Token');
+                    } catch (err) {
+                        console.error('Failed to fetch CSRF token:', err);
+                    }
+                }
+
+                // Make the assistant request
+                const res = await axios.post('/api/assistant/ask', { question: q });
+                setMessages((prev) => [
+                    ...prev,
+                    { from: 'bot', text: res.data.answer, category: res.data.category, time: new Date() },
+                ]);
         } catch {
-            setMessages((prev) => [
-                ...prev,
-                { from: 'bot', text: 'Connection error. Please try again shortly.', time: new Date() },
-            ]);
+                // Try once more: attempt to fetch CSRF token then retry request
+                try {
+                    await axios.get('/api/assistant/suggestions');
+                    const retry = await axios.post('/api/assistant/ask', { question: q });
+                    setMessages((prev) => [
+                        ...prev,
+                        { from: 'bot', text: retry.data.answer, category: retry.data.category, time: new Date() },
+                    ]);
+                } catch (err) {
+                    console.error('Assistant request failed:', err);
+                    setMessages((prev) => [
+                        ...prev,
+                        { from: 'bot', text: 'Connection error. Please try again shortly.', time: new Date() },
+                    ]);
+                }
         } finally {
             setLoading(false);
         }
