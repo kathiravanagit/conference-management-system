@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   FaHome,
   FaCalendar,
-  FaChartBar,
   FaTicketAlt,
   FaList,
   FaSignOutAlt,
@@ -137,9 +136,7 @@ const Header = () => {
                 </>
               )}
 
-              <Link to="/analytics" className={`nav-link ${isActive('/analytics') ? 'nav-active' : ''}`}>
-                <FaChartBar /> Analytics
-              </Link>
+              {/* Analytics link removed for student UI */}
 
               <div className="profile-menu" ref={menuRef}>
                 <button

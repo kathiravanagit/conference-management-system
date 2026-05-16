@@ -18,7 +18,6 @@ const ConferenceDetail = lazy(() => import('./pages/Conferences/ConferenceDetail
 const VideoMeeting = lazy(() => import('./pages/Conferences/VideoMeeting'));
 const MyRegistrations = lazy(() => import('./pages/Dashboard/MyRegistrations'));
 const ParticipationDashboard = lazy(() => import('./pages/Dashboard/ParticipationDashboard'));
-const Analytics = lazy(() => import('./pages/Analytics/Analytics'));
 const TwoFactorSetup = lazy(() => import('./pages/Auth/TwoFactorSetup'));
 const QRCodePage = lazy(() => import('./pages/QR/QRCodePage'));
 const QRScanner = lazy(() => import('./pages/QR/QRScanner'));
@@ -179,7 +178,7 @@ function AppContent() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="/analytics" element={<Analytics />} />
+              {/* Analytics route removed for student users */}
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </Suspense>

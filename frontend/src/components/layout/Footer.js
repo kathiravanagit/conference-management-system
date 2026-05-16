@@ -50,7 +50,6 @@ const Footer = () => {
                         <div className="footer-col">
                             <h4>Platform</h4>
                             <Link to="/conferences">Conferences</Link>
-                            <Link to="/analytics">Analytics</Link>
                             <Link to="/meetings">Meetings</Link>
                         </div>
                         <div className="footer-col">
