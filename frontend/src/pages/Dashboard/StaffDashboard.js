@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -28,7 +28,7 @@ const StaffDashboard = () => {
   const [inviteCopyMessage, setInviteCopyMessage] = useState('');
   const { user } = useAuth();
 
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -38,7 +38,7 @@ const StaffDashboard = () => {
       setConferences(data.recentConferences || []);
       setUpcomingConferences(data.upcomingConferences || []);
       setOngoingConferences(data.ongoingConferences || []);
-      
+
       // Load top participants from analytics
       try {
         const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -52,9 +52,9 @@ const StaffDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadCompletedConferences = async () => {
+  const loadCompletedConferences = useCallback(async () => {
     try {
       const res = await conferenceAPI.getCompleted();
       const data = res.data;
@@ -62,17 +62,15 @@ const StaffDashboard = () => {
     } catch (err) {
       // silently ignore — not critical
     }
-  };
-
-  useEffect(() => {
-    loadDashboard();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  useEffect(() => {
     if (user?._id) loadCompletedConferences();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user?._id, loadCompletedConferences]);
 
   const [conferenceForm, setConferenceForm] = useState({
     title: '',

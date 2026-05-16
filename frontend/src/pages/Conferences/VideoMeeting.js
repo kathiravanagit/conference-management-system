@@ -188,8 +188,7 @@ const VideoMeeting = () => {
             setPeersInfo({});
             setWaitingRequests([]);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [conferenceId, isAuthenticated]);
+    }, [conferenceId, isAuthenticated, user, screenStream, navigate]);
 
     useEffect(() => {
         return () => {

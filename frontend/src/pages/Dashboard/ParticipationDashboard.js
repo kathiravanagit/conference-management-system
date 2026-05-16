@@ -59,7 +59,7 @@ const ParticipationDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.participationCount]);
 
   useEffect(() => {
     fetchParticipationData();

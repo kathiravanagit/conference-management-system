@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { registrationAPI, certificateAPI, attendanceAPI } from '../../utils/api';
 import { formatDate, handleApiError } from '../../utils/helpers';
@@ -12,11 +12,7 @@ const MyRegistrations = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchMyRegistrations();
-  }, []);
-
-  const fetchMyRegistrations = async () => {
+  const fetchMyRegistrations = useCallback(async () => {
     try {
       setLoading(true);
       const [registrationsResponse, certificatesResponse] = await Promise.all([
@@ -40,7 +36,11 @@ const MyRegistrations = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchMyRegistrations();
+  }, [fetchMyRegistrations]);
 
   const generateCertificate = async (registrationId) => {
     try {
