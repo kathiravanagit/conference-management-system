@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatDate, handleApiError } from '../../utils/helpers';
+import { registrationAPI, certificateAPI } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 import Loading from '../../components/ui/Loading';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import './ParticipationDashboard.css';
@@ -21,13 +23,14 @@ const ParticipationDashboard = () => {
   const [filter, setFilter] = useState('all'); // all, registered, attended, certified
   const [feedbackForm, setFeedbackForm] = useState({}); // { [conferenceId]: { rating, comment, submitted } }
 
+  const { user } = useAuth();
+
   const fetchParticipationData = useCallback(async () => {
     try {
       setLoading(true);
-      const [regsResponse, certsResponse, profileResponse] = await Promise.all([
-        axios.get('/api/registrations/my'),
-        axios.get('/api/certificates/my'),
-        axios.get('/api/auth/me'),
+      const [regsResponse, certsResponse] = await Promise.all([
+        registrationAPI.getMyRegistrations(),
+        certificateAPI.getMyCertificates(),
       ]);
 
       const registrations = regsResponse.data.registrations || [];
@@ -47,7 +50,7 @@ const ParticipationDashboard = () => {
         totalRegistered: registrations.length,
         totalAttended: registrations.filter((r) => r.status === 'attended').length,
         totalCertificates: certificates.length,
-        currentPoints: profileResponse.data.user?.participationCount || 0,
+        currentPoints: user?.participationCount || 0,
       };
       setStats(stats);
       setError('');
