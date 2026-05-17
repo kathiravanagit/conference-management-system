@@ -4,6 +4,25 @@ import axios from 'axios';
 axios.defaults.baseURL = process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:5000';
 axios.defaults.withCredentials = true; // Enable cookies in cross-origin requests
 
+// Automatically attach CSRF token cookie value as header on all state-changing requests.
+// The backend sets the X-CSRF-Token cookie after login; we just read it and mirror it
+// as a header (Double Submit Cookie pattern — stateless, survives server restarts).
+axios.interceptors.request.use((config) => {
+  const method = (config.method || '').toLowerCase();
+  if (['post', 'put', 'delete', 'patch'].includes(method)) {
+    const csrfCookie = document.cookie
+      .split(';')
+      .find((c) => c.trim().startsWith('X-CSRF-Token='));
+    if (csrfCookie) {
+      const csrfToken = decodeURIComponent(csrfCookie.split('=')[1]?.trim() || '');
+      if (csrfToken) {
+        config.headers['X-CSRF-Token'] = csrfToken;
+      }
+    }
+  }
+  return config;
+});
+
 const AuthContext = createContext();
 
 export const useAuth = () => {

@@ -1,147 +1,123 @@
 const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
-
-const CSRF_TOKEN_EXPIRY = 60 * 60 * 1000; // 1 hour
-const csrfTokenStore = new Map(); // In production, use Redis
 
 /**
- * Custom CSRF Protection Middleware
- * Generates and validates CSRF tokens for state-changing requests
- * Modern approach: token in response header, validated on POST/PUT/DELETE
+ * Stateless CSRF Protection — Double Submit Cookie Pattern
+ *
+ * How it works:
+ * 1. On login/auth: server generates a random token, sets it as a cookie (readable by JS)
+ * 2. Frontend reads the cookie and sends it as 'X-CSRF-Token' header on every POST/PUT/DELETE
+ * 3. Server simply checks header value === cookie value (no server-side store needed)
+ *
+ * Why stateless? The previous in-memory Map was cleared every time Render restarts
+ * (every 15 min on free tier), breaking all POST requests after a cold start.
  */
 
+const CSRF_COOKIE_NAME = 'X-CSRF-Token';
+const CSRF_COOKIE_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+
+const publicEndpoints = [
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
+  '/api/auth/confirm-login',
+  '/api/auth/google',
+  '/api/assistant/ask',
+];
+
 /**
- * Generate CSRF Token
- * Call on GET requests (especially page loads) to provide CSRF token
+ * Generate CSRF Token — call after login/google-auth to set the cookie
  */
 exports.generateCSRFToken = (req, res, next) => {
   try {
-    // Generate a random token
     const token = crypto.randomBytes(32).toString('hex');
-    
-    // Store with expiry
-    csrfTokenStore.set(token, {
-      createdAt: Date.now(),
-      userId: req.user?.id || 'anonymous',
-    });
 
-    // Set in response header and optionally in a cookie for client-side access
+    // Set as a non-httpOnly cookie so the frontend JS can read it
     res.setHeader('X-CSRF-Token', token);
-    res.cookie('X-CSRF-Token', token, {
-      httpOnly: false, // Client-side JS needs to read this
+    res.cookie(CSRF_COOKIE_NAME, token, {
+      httpOnly: false, // Must be readable by frontend JS
       secure: process.env.NODE_ENV === 'production',
-      // Allow SPA to read/send the CSRF cookie in dev; use 'none' with secure in production
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: CSRF_TOKEN_EXPIRY,
+      maxAge: CSRF_COOKIE_MAX_AGE,
     });
 
     next();
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to generate CSRF token',
-    });
+    res.status(500).json({ success: false, message: 'Failed to generate CSRF token' });
   }
 };
 
 /**
- * Validate CSRF Token
- * Verify token on POST/PUT/DELETE requests
+ * Validate CSRF Token — stateless double-submit cookie check
+ * Just verifies that the header value matches the cookie value.
+ * No server-side store needed — survives server restarts.
  */
 exports.validateCSRFToken = (req, res, next) => {
   try {
-    // Skip CSRF check for GET requests (idempotent operations)
+    // Skip safe methods
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
       return next();
     }
 
-    // Skip for public endpoints (like /api/auth/login, /api/auth/register)
-    const publicEndpoints = [
-      '/api/auth/login',
-      '/api/auth/register',
-      '/api/auth/forgot-password',
-      '/api/auth/reset-password',
-      '/api/auth/confirm-login',
-      '/api/auth/google',
-      '/api/assistant/ask',
-    ];
-
+    // Skip public auth endpoints
     if (publicEndpoints.includes(req.path)) {
       return next();
     }
 
-    // Allow debug routes in non-production for easier local testing
-    if (process.env.NODE_ENV !== 'production' && req.path && req.path.startsWith('/api/debug')) {
+    // Skip debug routes in development
+    if (process.env.NODE_ENV !== 'production' && req.path?.startsWith('/api/debug')) {
       return next();
     }
 
-    // Get token from header or body
-    const token = req.headers['x-csrf-token'] || 
-                  req.body?.csrfToken ||
-                  req.query?.csrfToken;
+    const headerToken = req.headers['x-csrf-token'];
+    const cookieToken = req.cookies?.[CSRF_COOKIE_NAME];
 
-    if (!token) {
+    if (!headerToken) {
       return res.status(403).json({
         success: false,
-        message: 'CSRF token missing',
+        message: 'CSRF token missing — please refresh the page and try again.',
       });
     }
 
-    // Validate token exists and hasn't expired
-    const tokenData = csrfTokenStore.get(token);
-    if (!tokenData) {
+    if (!cookieToken) {
+      // Cookie missing: likely the session just started or cookie expired.
+      // In this case we can't validate, so reject.
       return res.status(403).json({
         success: false,
-        message: 'Invalid or expired CSRF token',
+        message: 'CSRF cookie missing — please log out and log in again.',
       });
     }
 
-    // Check expiry
-    if (Date.now() - tokenData.createdAt > CSRF_TOKEN_EXPIRY) {
-      csrfTokenStore.delete(token);
+    // Stateless check: header must match cookie
+    if (headerToken !== cookieToken) {
       return res.status(403).json({
         success: false,
-        message: 'CSRF token expired',
+        message: 'CSRF token mismatch — possible CSRF attack blocked.',
       });
     }
 
-    // Mark token as used (optional: one-time use tokens)
-    // csrfTokenStore.delete(token);
-
-    next();
+    return next();
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'CSRF validation failed',
-    });
+    return res.status(500).json({ success: false, message: 'CSRF validation failed' });
   }
 };
 
 /**
- * Cleanup expired tokens periodically
- * Run this function every hour
+ * Cleanup — no-op now (stateless, no store to clean)
+ * Kept for backwards compatibility with server.js call.
  */
 exports.cleanupExpiredTokens = () => {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [token, data] of csrfTokenStore.entries()) {
-      if (now - data.createdAt > CSRF_TOKEN_EXPIRY) {
-        csrfTokenStore.delete(token);
-      }
-    }
-  }, 60 * 60 * 1000); // Run every hour
+  // No-op: stateless CSRF needs no cleanup
 };
 
 /**
- * Invalidate CSRF Token (on logout)
+ * Invalidate CSRF Token on logout — clear the cookie
  */
 exports.invalidateCSRFToken = (req, res, next) => {
-  const token = req.headers['x-csrf-token'] || 
-                req.cookies['X-CSRF-Token'];
-  
-  if (token && csrfTokenStore.has(token)) {
-    csrfTokenStore.delete(token);
-  }
-
+  res.clearCookie(CSRF_COOKIE_NAME, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  });
   next();
 };
