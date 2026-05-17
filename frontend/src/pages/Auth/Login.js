@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import EyeIcon from '../../components/ui/EyeIcon';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useGoogleLogin } from '@react-oauth/google';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import './Auth.css';
+
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -16,55 +17,104 @@ const Login = () => {
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [gsiReady, setGsiReady] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [twoFactorToken, setTwoFactorToken] = useState('');
+
   const { login, googleLogin, logout, verifyTwoFactor } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const redirectParam = new URLSearchParams(location.search).get('redirect');
   const redirectPath = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/conferences';
 
-  /**
-   * IMPORTANT NOTES about useGoogleLogin (@react-oauth/google v0.12+):
-   * - Do NOT pass `flow: 'implicit'` — it is the default and passing it can
-   *   cause silent failures in some versions.
-   * - Do NOT pass `ux_mode: 'popup'` — that option is only for the built-in
-   *   GoogleLogin button component, NOT for useGoogleLogin. It breaks the hook.
-   * - The returned function must be called directly from a user click handler
-   *   (no async wrapper, no try/catch around the call itself).
-   */
-  const openGooglePopup = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      setError('');
-      setGoogleLoading(true);
-      try {
-        const accessToken = tokenResponse.access_token;
-        if (!accessToken) {
-          setError('No access token received from Google. Please try again.');
-          return;
-        }
-        const result = await googleLogin(accessToken);
-        if (result?.requires2FA) {
-          setRequires2FA(true);
-          setTwoFactorToken(result.twoFactorToken);
-          setInfo(result.message || 'Two-factor verification required.');
-          return;
-        }
-        navigate(redirectPath);
-      } catch (err) {
-        console.error('[Google Login] Error:', err.response?.data || err.message);
-        setError(err.response?.data?.message || 'Google login failed. Please try again.');
-      } finally {
-        setGoogleLoading(false);
+  // We use a ref so the callback always has fresh state without re-initializing the client
+  const tokenClientRef = useRef(null);
+  const onGoogleSuccess = useRef(null);
+
+  // Keep the success handler up-to-date without needing to reinitialize the token client
+  onGoogleSuccess.current = useCallback(async (accessToken) => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      const result = await googleLogin(accessToken);
+      if (result?.requires2FA) {
+        setRequires2FA(true);
+        setTwoFactorToken(result.twoFactorToken);
+        setInfo(result.message || 'Two-factor verification required.');
+        return;
       }
-    },
-    onError: (err) => {
-      console.error('[Google Login] OAuth error:', err);
-      setError('Google sign-in failed. Please try again.');
+      navigate(redirectPath);
+    } catch (err) {
+      console.error('[Google Login] Error:', err.response?.data || err.message);
+      setError(err.response?.data?.message || 'Google login failed. Please try again.');
+    } finally {
       setGoogleLoading(false);
-    },
-  });
+    }
+  }, [googleLogin, navigate, redirectPath]);
+
+  // Load the Google Identity Services script directly — no library wrapper needed
+  useEffect(() => {
+    // If already loaded (e.g. hot reload), initialize immediately
+    if (window.google?.accounts?.oauth2) {
+      initTokenClient();
+      return;
+    }
+
+    // Check if script tag already exists
+    if (document.getElementById('gsi-script')) {
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = 'gsi-script';
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      console.log('[Google] GSI script loaded');
+      initTokenClient();
+    };
+    script.onerror = () => {
+      console.error('[Google] Failed to load GSI script');
+      setError('Could not load Google sign-in. Check your internet connection.');
+    };
+    document.body.appendChild(script);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function initTokenClient() {
+    if (!GOOGLE_CLIENT_ID) {
+      console.error('[Google] REACT_APP_GOOGLE_CLIENT_ID is not set');
+      return;
+    }
+    tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'openid email profile',
+      callback: (tokenResponse) => {
+        if (tokenResponse.error) {
+          console.error('[Google] Token error:', tokenResponse.error);
+          setError('Google sign-in was cancelled or failed. Please try again.');
+          setGoogleLoading(false);
+          return;
+        }
+        if (onGoogleSuccess.current) {
+          onGoogleSuccess.current(tokenResponse.access_token);
+        }
+      },
+    });
+    setGsiReady(true);
+    console.log('[Google] Token client initialized');
+  }
+
+  const handleGoogleClick = () => {
+    if (!tokenClientRef.current) {
+      setError('Google sign-in is not ready yet. Please wait a moment and try again.');
+      return;
+    }
+    setGoogleLoading(true);
+    tokenClientRef.current.requestAccessToken({ prompt: 'select_account' });
+  };
 
   React.useEffect(() => {
     if (location.state?.message) {
@@ -251,16 +301,18 @@ const Login = () => {
               <span>or</span>
             </div>
 
-            {/* Direct call — no try/catch, no async wrapper around openGooglePopup() */}
             <button
               type="button"
               id="google-login-btn"
               className="google-btn"
-              disabled={googleLoading}
-              onClick={openGooglePopup}
+              disabled={googleLoading || !gsiReady}
+              onClick={handleGoogleClick}
             >
-              <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" />
-              {googleLoading ? 'Signing in...' : 'Continue with Google'}
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
+                alt="Google Logo"
+              />
+              {googleLoading ? 'Signing in...' : !gsiReady ? 'Loading...' : 'Continue with Google'}
             </button>
           </>
         )}
