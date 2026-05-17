@@ -65,6 +65,21 @@ const StaffRoute = ({ children }) => {
   return children;
 };
 
+// Redirects already-logged-in users away from auth pages (login, register, etc.)
+const GuestRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return <div className="loading">Loading...</div>;
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/conferences" replace />;
+  }
+
+  return children;
+};
+
 function AppContent() {
   return (
     <Router>
@@ -74,10 +89,10 @@ function AppContent() {
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+              <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
+              <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
+              <Route path="/reset-password" element={<GuestRoute><ResetPassword /></GuestRoute>} />
               <Route path="/confirm-login" element={<ConfirmLogin />} />
               <Route path="/conferences" element={<Conferences />} />
               <Route path="/meetings" element={<Meetings />} />
