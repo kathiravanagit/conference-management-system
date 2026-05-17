@@ -32,10 +32,21 @@ const app = express();
 // Create HTTP server
 const server = http.createServer(app);
 
+// Allowed CORS origins (dev + production)
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  process.env.CORS_ORIGIN,
+].filter(Boolean);
+
 // Initialize Socket.io
 const io = socketIO(server, {
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error(`Socket CORS blocked: ${origin}`));
+    },
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -46,8 +57,14 @@ io.use(socketAuthMiddleware);
 
 // Middleware
 app.disable('x-powered-by');
+
 app.use(cors({ 
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. Postman, server-to-server)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS blocked: ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   // Allow CSRF header and cookies for cross-origin requests

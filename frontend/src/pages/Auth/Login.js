@@ -26,18 +26,20 @@ const Login = () => {
 
   const handleGoogleLogin = useGoogleLogin({
     flow: 'implicit',
+    ux_mode: 'popup',
     onSuccess: async (tokenResponse) => {
       setError('');
       setLoading(true);
-      console.log('[Google Login] Token received, tokenResponse:', tokenResponse);
+      console.log('[Google Login] Token received:', tokenResponse);
       try {
-        const credential = tokenResponse.credential || tokenResponse.access_token;
-        if (!credential) {
-          setError('No credential received from Google');
+        // implicit flow always returns access_token (not credential/id_token)
+        const accessToken = tokenResponse.access_token;
+        if (!accessToken) {
+          setError('No access token received from Google. Please try again.');
           setLoading(false);
           return;
         }
-        const result = await googleLogin(credential);
+        const result = await googleLogin(accessToken);
         if (result?.requires2FA) {
           setRequires2FA(true);
           setTwoFactorToken(result.twoFactorToken);
@@ -47,13 +49,14 @@ const Login = () => {
         navigate(redirectPath);
       } catch (err) {
         console.error('[Google Login] Error:', err.response?.data || err.message);
-        setError(err.response?.data?.message || 'Google login failed');
+        setError(err.response?.data?.message || 'Google login failed. Please try again.');
       } finally {
         setLoading(false);
       }
     },
-    onError: () => {
-      setError('Google login failed. Please try again.');
+    onError: (err) => {
+      console.error('[Google Login] OAuth error:', err);
+      setError('Google sign-in was cancelled or failed. Please try again.');
       setLoading(false);
     }
   });
@@ -245,18 +248,20 @@ const Login = () => {
             <button
               type="button"
               className="google-btn"
+              disabled={loading}
               onClick={() => {
                 console.debug('[Login] Google button clicked');
+                setError('');
                 try {
                   handleGoogleLogin();
                 } catch (e) {
                   console.error('[Login] handleGoogleLogin threw:', e);
-                  setError('Google sign-in failed to start. Check popup blockers.');
+                  setError('Google sign-in failed to start. Please disable any popup blockers and try again.');
                 }
               }}
             >
               <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" />
-              Continue with Google
+              {loading ? 'Please wait...' : 'Continue with Google'}
             </button>
           </>
         )}

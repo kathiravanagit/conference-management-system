@@ -933,9 +933,24 @@ exports.googleLogin = async (req, res, next) => {
       userAgent: req.get('user-agent'),
     });
 
+    // Set httpOnly cookie (same as regular login) so the session persists
+    const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days for Google login
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge,
+    });
+
+    // Also generate and send a CSRF token
+    try {
+      generateCSRFToken(req, res, () => {});
+    } catch (e) {
+      // Non-fatal: continue without blocking login
+    }
+
     res.status(200).json({
       success: true,
-      token,
       user: {
         id: user._id,
         name: user.name,
