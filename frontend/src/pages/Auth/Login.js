@@ -31,6 +31,7 @@ const Login = () => {
   // We use a ref so the callback always has fresh state without re-initializing the client
   const tokenClientRef = useRef(null);
   const onGoogleSuccess = useRef(null);
+  const googleTimeoutRef = useRef(null); // Safety timeout in case popup callback never fires
 
   // Keep the success handler up-to-date without needing to reinitialize the token client
   onGoogleSuccess.current = useCallback(async (accessToken) => {
@@ -91,15 +92,36 @@ const Login = () => {
     tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: 'openid email profile',
+      // OAuth callback — called when user completes or denies sign-in
       callback: (tokenResponse) => {
+        clearTimeout(googleTimeoutRef.current);
         if (tokenResponse.error) {
-          console.error('[Google] Token error:', tokenResponse.error);
-          setError('Google sign-in was cancelled or failed. Please try again.');
+          console.error('[Google] Token error:', tokenResponse.error, tokenResponse.error_subtype);
           setGoogleLoading(false);
+          if (tokenResponse.error !== 'access_denied') {
+            setError('Google sign-in failed. Please try again.');
+          }
+          // access_denied = user cancelled, no error message needed
           return;
         }
         if (onGoogleSuccess.current) {
           onGoogleSuccess.current(tokenResponse.access_token);
+        }
+      },
+      // error_callback — called for NON-OAuth errors: popup blocked, popup closed, etc.
+      error_callback: (err) => {
+        clearTimeout(googleTimeoutRef.current);
+        console.error('[Google] Non-OAuth error:', err?.type, err);
+        setGoogleLoading(false);
+        if (err?.type === 'popup_failed_to_open') {
+          setError(
+            'Google sign-in popup was blocked by your browser. ' +
+            'Please click the address bar icon to allow popups for this site, then try again.'
+          );
+        } else if (err?.type === 'popup_closed') {
+          // User closed the popup manually — no error message needed
+        } else {
+          setError('Google sign-in failed. Please try again.');
         }
       },
     });
@@ -112,7 +134,18 @@ const Login = () => {
       setError('Google sign-in is not ready yet. Please wait a moment and try again.');
       return;
     }
+    setError('');
     setGoogleLoading(true);
+
+    // Safety net: if popup callback never fires (completely silent block),
+    // reset after 2 minutes so the button doesn't stay stuck forever.
+    googleTimeoutRef.current = setTimeout(() => {
+      setGoogleLoading(false);
+      setError(
+        'Google sign-in timed out. If a popup was blocked, please allow popups for this site and try again.'
+      );
+    }, 120000);
+
     tokenClientRef.current.requestAccessToken({ prompt: 'select_account' });
   };
 
