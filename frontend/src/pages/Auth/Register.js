@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import EyeIcon from '../../components/ui/EyeIcon';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useGoogleLogin } from '@react-oauth/google';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import './Auth.css';
+
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+const GOOGLE_OAUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -18,49 +20,70 @@ const Register = () => {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
   const { register, googleLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const redirectParam = new URLSearchParams(location.search).get('redirect');
   const redirectPath = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/conferences';
 
-  const handleGoogleLogin = useGoogleLogin({
-    flow: 'implicit',
-    onSuccess: async (tokenResponse) => {
-      setError('');
-      setLoading(true);
-      console.log('[Google Register] Token received, has credential:', !!tokenResponse.credential);
-      try {
-        const credential = tokenResponse.credential || tokenResponse.access_token;
-        if (!credential) {
-          setError('No credential received from Google');
-          setLoading(false);
-          return;
-        }
-        const result = await googleLogin(credential);
-        if (result?.requires2FA) {
-          // Since it's register we probably don't have 2FA yet, but just in case
-          navigate('/login', {
-            state: {
-              twoFactorToken: result.twoFactorToken,
-              message: 'Two-factor verification required.'
-            }
-          });
-          return;
-        }
-        navigate(redirectPath);
-      } catch (err) {
-        console.error('[Google Register] Error:', err.response?.data || err.message);
-        setError(err.response?.data?.message || 'Google signup failed');
-      } finally {
-        setLoading(false);
+  // ─── Google Redirect Flow ───────────────────────────────────────────────────
+  const handleGoogleToken = useCallback(async (accessToken) => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      const result = await googleLogin(accessToken);
+      if (result?.requires2FA) {
+        navigate('/login', {
+          state: {
+            twoFactorToken: result.twoFactorToken,
+            message: 'Two-factor verification required.',
+          },
+        });
+        return;
       }
-    },
-    onError: () => {
-      setError('Google signup failed. Please try again.');
-      setLoading(false);
+      navigate(redirectPath);
+    } catch (err) {
+      console.error('[Google Register] Error:', err.response?.data || err.message);
+      setError(err.response?.data?.message || 'Google signup failed. Please try again.');
+    } finally {
+      setGoogleLoading(false);
     }
-  });
+  }, [googleLogin, navigate, redirectPath]);
+
+  // On page load: check if Google redirected back with a token in the URL hash
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash) return;
+    const params = new URLSearchParams(hash.substring(1));
+    const accessToken = params.get('access_token');
+    const state = params.get('state');
+    if (accessToken && state === 'google_oauth_register') {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      handleGoogleToken(accessToken);
+    }
+  }, [handleGoogleToken]);
+
+  // Redirect to Google — no popup, works everywhere
+  const handleGoogleClick = () => {
+    if (!GOOGLE_CLIENT_ID) {
+      setError('Google login is not configured.');
+      return;
+    }
+    const redirectUri = window.location.origin + '/register';
+    const params = new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      redirect_uri: redirectUri,
+      response_type: 'token',
+      scope: 'openid email profile',
+      include_granted_scopes: 'true',
+      state: 'google_oauth_register',
+      prompt: 'select_account',
+    });
+    window.location.href = `${GOOGLE_OAUTH_URL}?${params.toString()}`;
+  };
+  // ────────────────────────────────────────────────────────────────────────────
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -107,6 +130,12 @@ const Register = () => {
         <p className="auth-subtitle">Create your role-based account.</p>
         {info && <div className="info-message">{info}</div>}
         {error && <ErrorMessage message={error} onClose={() => setError('')} />}
+
+        {googleLoading && (
+          <div className="info-message" style={{ textAlign: 'center' }}>
+            Completing Google sign-in, please wait...
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -190,8 +219,8 @@ const Register = () => {
                 <option value="CSE">Computer Science (CSE)</option>
                 <option value="ECE">Electronics (ECE)</option>
                 <option value="MECH">Mechanical (MECH)</option>
-                <option value="AIML">AI & Machine Learning (AIML)</option>
-                <option value="EEE">Electrical & Electronics (EEE)</option>
+                <option value="AIML">AI &amp; Machine Learning (AIML)</option>
+                <option value="EEE">Electrical &amp; Electronics (EEE)</option>
                 <option value="FT">Food Technology (FT)</option>
                 <option value="IT">Information Technology (IT)</option>
                 <option value="OTHER">Other</option>
@@ -207,13 +236,15 @@ const Register = () => {
         <div className="auth-divider">
           <span>or</span>
         </div>
+
         <button
           type="button"
           className="google-btn"
-          onClick={() => handleGoogleLogin()}
+          disabled={googleLoading}
+          onClick={handleGoogleClick}
         >
           <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" />
-          Continue with Google
+          {googleLoading ? 'Signing in...' : 'Continue with Google'}
         </button>
 
         <p className="auth-link">
