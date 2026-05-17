@@ -9,9 +9,9 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '1234567890-mockclientid.apps.googleusercontent.com';
 
 root.render(
-  <React.StrictMode>
-    <GoogleOAuthProvider clientId={clientId}>
-      <App />
-    </GoogleOAuthProvider>
-  </React.StrictMode>
+  // NOTE: React.StrictMode is intentionally removed — it breaks @react-oauth/google
+  // in React 18 dev mode by double-invoking hooks, causing the Google popup to fail.
+  <GoogleOAuthProvider clientId={clientId}>
+    <App />
+  </GoogleOAuthProvider>
 );

@@ -15,6 +15,7 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [twoFactorToken, setTwoFactorToken] = useState('');
@@ -24,19 +25,23 @@ const Login = () => {
   const redirectParam = new URLSearchParams(location.search).get('redirect');
   const redirectPath = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/conferences';
 
-  const handleGoogleLogin = useGoogleLogin({
-    flow: 'implicit',
-    ux_mode: 'popup',
+  /**
+   * IMPORTANT NOTES about useGoogleLogin (@react-oauth/google v0.12+):
+   * - Do NOT pass `flow: 'implicit'` — it is the default and passing it can
+   *   cause silent failures in some versions.
+   * - Do NOT pass `ux_mode: 'popup'` — that option is only for the built-in
+   *   GoogleLogin button component, NOT for useGoogleLogin. It breaks the hook.
+   * - The returned function must be called directly from a user click handler
+   *   (no async wrapper, no try/catch around the call itself).
+   */
+  const openGooglePopup = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setError('');
-      setLoading(true);
-      console.log('[Google Login] Token received:', tokenResponse);
+      setGoogleLoading(true);
       try {
-        // implicit flow always returns access_token (not credential/id_token)
         const accessToken = tokenResponse.access_token;
         if (!accessToken) {
           setError('No access token received from Google. Please try again.');
-          setLoading(false);
           return;
         }
         const result = await googleLogin(accessToken);
@@ -51,14 +56,14 @@ const Login = () => {
         console.error('[Google Login] Error:', err.response?.data || err.message);
         setError(err.response?.data?.message || 'Google login failed. Please try again.');
       } finally {
-        setLoading(false);
+        setGoogleLoading(false);
       }
     },
     onError: (err) => {
       console.error('[Google Login] OAuth error:', err);
-      setError('Google sign-in was cancelled or failed. Please try again.');
-      setLoading(false);
-    }
+      setError('Google sign-in failed. Please try again.');
+      setGoogleLoading(false);
+    },
   });
 
   React.useEffect(() => {
@@ -239,29 +244,23 @@ const Login = () => {
             {loading ? 'Please wait...' : requires2FA ? 'Verify' : 'Login'}
           </button>
         </form>
+
         {!requires2FA && (
           <>
             <div className="auth-divider">
               <span>or</span>
             </div>
 
+            {/* Direct call — no try/catch, no async wrapper around openGooglePopup() */}
             <button
               type="button"
+              id="google-login-btn"
               className="google-btn"
-              disabled={loading}
-              onClick={() => {
-                console.debug('[Login] Google button clicked');
-                setError('');
-                try {
-                  handleGoogleLogin();
-                } catch (e) {
-                  console.error('[Login] handleGoogleLogin threw:', e);
-                  setError('Google sign-in failed to start. Please disable any popup blockers and try again.');
-                }
-              }}
+              disabled={googleLoading}
+              onClick={openGooglePopup}
             >
               <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" />
-              {loading ? 'Please wait...' : 'Continue with Google'}
+              {googleLoading ? 'Signing in...' : 'Continue with Google'}
             </button>
           </>
         )}
