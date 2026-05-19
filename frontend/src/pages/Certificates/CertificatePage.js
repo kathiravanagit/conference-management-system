@@ -6,6 +6,10 @@ import Loading from '../../components/ui/Loading';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import './CertificatePage.css';
 
+const API_URL = process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL.replace(/\/$/, '')
+  : '/api';
+
 const CertificatePage = () => {
   const { certificateId } = useParams();
   const navigate = useNavigate();
@@ -17,7 +21,7 @@ const CertificatePage = () => {
   const fetchCert = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/certificates/my');
+      const response = await axios.get(`${API_URL}/certificates/my`);
       const cert = response.data.certificates?.find((c) => c._id === certificateId);
       if (!cert) {
         setError('Certificate not found');
@@ -38,7 +42,7 @@ const CertificatePage = () => {
   const handleDownload = async () => {
     try {
       setDownloading(true);
-      const response = await axios.get(`/api/certificates/${certificateId}/download`, {
+      const response = await axios.get(`${API_URL}/certificates/${certificateId}/download`, {
         responseType: 'blob',
       });
 

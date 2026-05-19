@@ -7,6 +7,10 @@ import Loading from '../../components/ui/Loading';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import './QRCodePage.css';
 
+const API_URL = process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL.replace(/\/$/, '')
+  : '/api';
+
 const QRCodePage = () => {
   const { registrationId } = useParams();
   const navigate = useNavigate();
@@ -18,7 +22,7 @@ const QRCodePage = () => {
   const fetchReg = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/registrations/my');
+      const response = await axios.get(`${API_URL}/registrations/my`);
       const reg = response.data.registrations?.find((r) => r._id === registrationId);
       if (!reg) {
         setError('Registration not found');

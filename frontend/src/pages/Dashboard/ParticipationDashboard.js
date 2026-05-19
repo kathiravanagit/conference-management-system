@@ -9,6 +9,10 @@ import ErrorMessage from '../../components/ui/ErrorMessage';
 import './ParticipationDashboard.css';
 import { FaClipboardList, FaCheckCircle, FaAward, FaCalendarAlt } from 'react-icons/fa';
 
+const API_URL = process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL.replace(/\/$/, '')
+  : '/api';
+
 const ParticipationDashboard = () => {
   const navigate = useNavigate();
   const [registrations, setRegistrations] = useState([]);
@@ -108,7 +112,7 @@ const ParticipationDashboard = () => {
     const f = feedbackForm[conferenceId];
     if (!f?.rating) return;
     try {
-      await axios.post('/api/feedback', {
+      await axios.post(`${API_URL}/feedback`, {
         conferenceId,
         rating: f.rating,
         comment: f.comment || '',

@@ -6,6 +6,10 @@ import Loading from '../../components/ui/Loading';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import './QRScanner.css';
 
+const API_URL = process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL.replace(/\/$/, '')
+  : '/api';
+
 const QRScanner = () => {
   const { conferenceId } = useParams();
   const navigate = useNavigate();
@@ -28,7 +32,7 @@ const QRScanner = () => {
   // Define all callbacks first, before useEffect
   const fetchConfDetails = useCallback(async () => {
     try {
-      const response = await axios.get(`/api/conferences/${conferenceId}`);
+      const response = await axios.get(`${API_URL}/conferences/${conferenceId}`);
       setConference(response.data.data);
     } catch (err) {
       setError('Failed to fetch conference details');
@@ -43,7 +47,7 @@ const QRScanner = () => {
       setSuccess('');
       setError('');
 
-      await axios.post('/api/attendance/mark', {
+      await axios.post(`${API_URL}/attendance/mark`, {
         registrationId: qrData.registrationId,
         ticketNumber: qrData.ticketNumber,
       });
@@ -161,7 +165,7 @@ const QRScanner = () => {
     }
 
     try {
-      const registrations = await axios.get('/api/registrations/my');
+      const registrations = await axios.get(`${API_URL}/registrations/my`);
       const registration = registrations.data.registrations?.find(
         (r) => r.ticketNumber === manualTicket && r.conferenceId._id === conferenceId
       );

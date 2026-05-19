@@ -3,6 +3,10 @@ import axios from 'axios';
 import { FaBell, FaTimes } from 'react-icons/fa';
 import './NotificationBell.css';
 
+const API_URL = process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL.replace(/\/$/, '')
+  : '/api';
+
 const NotificationBell = () => {
     const [open, setOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
@@ -11,7 +15,7 @@ const NotificationBell = () => {
 
     const fetchNotifications = useCallback(async () => {
         try {
-            const res = await axios.get('/api/notifications');
+            const res = await axios.get(`${API_URL}/notifications`);
             setNotifications(res.data.notifications || []);
             setUnread(res.data.unreadCount || 0);
         } catch (_) { }
@@ -35,7 +39,7 @@ const NotificationBell = () => {
         setOpen((prev) => !prev);
         if (!open && unread > 0) {
             try {
-                await axios.put('/api/notifications/read-all');
+                await axios.put(`${API_URL}/notifications/read-all`);
                 setUnread(0);
                 setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
             } catch (_) { }
@@ -45,7 +49,7 @@ const NotificationBell = () => {
     const handleDeleteNotification = async (notificationId) => {
         try {
             const target = notifications.find((n) => n._id === notificationId);
-            await axios.delete(`/api/notifications/${notificationId}`);
+            await axios.delete(`${API_URL}/notifications/${notificationId}`);
             setNotifications((prev) => prev.filter((n) => n._id !== notificationId));
             if (target && !target.isRead) {
                 setUnread((prev) => Math.max(0, prev - 1));

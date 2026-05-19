@@ -72,16 +72,21 @@ exports.validateConferenceCreation = [
     .notEmpty().withMessage('Description is required')
     .isLength({ min: 10, max: 5000 }).withMessage('Description must be between 10 and 5000 characters'),
   
-  body('startTime')
-    .notEmpty().withMessage('Start time is required')
-    .isISO8601().withMessage('Start time must be a valid date'),
+  body('date')
+    .notEmpty().withMessage('Start date/time is required')
+    .isISO8601().withMessage('Start date/time must be a valid date'),
   
-  body('endTime')
-    .notEmpty().withMessage('End time is required')
-    .isISO8601().withMessage('End time must be a valid date'),
+  body('endDate')
+    .notEmpty().withMessage('End date/time is required')
+    .isISO8601().withMessage('End date/time must be a valid date'),
   
-  body('capacity')
+  body('maxAttendees')
+    .optional()
     .isInt({ min: 1, max: 5000 }).withMessage('Capacity must be a number between 1 and 5000'),
+    
+  body('speaker.name')
+    .trim()
+    .notEmpty().withMessage('Speaker name is required'),
   
   exports.handleValidationErrors,
 ];

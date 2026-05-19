@@ -5,6 +5,10 @@ import { useAuth } from '../../context/AuthContext';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import './Auth.css';
 
+const API_URL = process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL.replace(/\/$/, '')
+  : '/api';
+
 const TwoFactorSetup = () => {
   const [step, setStep] = useState(1); // 1: Not setup, 2: Setup QR, 3: Verify, 4: Backup codes
   const [qrCode, setQrCode] = useState('');
@@ -23,7 +27,7 @@ const TwoFactorSetup = () => {
 
   const checkTwoFactorStatus = async () => {
     try {
-      const response = await axios.get('/api/auth/me');
+      const response = await axios.get(`${API_URL}/auth/me`);
       setTwoFactorEnabled(response.data.user?.twoFactorEnabled || false);
       if (response.data.user?.twoFactorEnabled) {
         setStep(4); // Show backup codes if already enabled
@@ -37,7 +41,7 @@ const TwoFactorSetup = () => {
     try {
       setLoading(true);
       setError('');
-      const response = await axios.post('/api/auth/2fa/setup');
+      const response = await axios.post(`${API_URL}/auth/2fa/setup`);
       const nextQrCode = response.data?.data?.qrCode;
       if (!nextQrCode) {
         setError('Failed to load QR code. Please try again.');
@@ -61,7 +65,7 @@ const TwoFactorSetup = () => {
     try {
       setLoading(true);
       setError('');
-      const response = await axios.post('/api/auth/2fa/verify-setup', {
+      const response = await axios.post(`${API_URL}/auth/2fa/verify-setup`, {
         token: verificationCode,
       });
       const nextBackupCodes = response.data?.data?.backupCodes || [];
@@ -85,7 +89,7 @@ const TwoFactorSetup = () => {
       try {
         setLoading(true);
         setError('');
-        await axios.post('/api/auth/2fa/disable');
+        await axios.post(`${API_URL}/auth/2fa/disable`);
         setTwoFactorEnabled(false);
         setStep(1);
         setSuccess('2FA disabled successfully.');
