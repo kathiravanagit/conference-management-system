@@ -16,12 +16,39 @@ axios.interceptors.request.use((config) => {
     if (csrfCookie) {
       const csrfToken = decodeURIComponent(csrfCookie.split('=')[1]?.trim() || '');
       if (csrfToken) {
-        config.headers['X-CSRF-Token'] = csrfToken;
+        if (config.headers.set) {
+          config.headers.set('X-CSRF-Token', csrfToken);
+        } else {
+          config.headers['X-CSRF-Token'] = csrfToken;
+        }
       }
     }
   }
   return config;
 });
+
+// Auto-retry mechanism for CSRF token expiration/missing
+axios.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (
+      error.response &&
+      error.response.status === 403 &&
+      error.response.data?.message?.includes('CSRF') &&
+      !originalRequest._retry
+    ) {
+      originalRequest._retry = true;
+      try {
+        await axios.get(`/api/auth/me?t=${Date.now()}`, { _retry: true });
+        return axios(originalRequest);
+      } catch (retryError) {
+        return Promise.reject(retryError);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 const AuthContext = createContext();
 

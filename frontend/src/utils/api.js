@@ -17,10 +17,46 @@ axios.interceptors.request.use((config) => {
   const method = (config.method || 'get').toLowerCase();
   if (!['get', 'head', 'options'].includes(method)) {
     const csrf = getCookie('X-CSRF-Token') || '';
-    if (csrf) config.headers['X-CSRF-Token'] = csrf;
+    if (csrf) {
+      if (config.headers.set) {
+        config.headers.set('X-CSRF-Token', csrf);
+      } else {
+        config.headers['X-CSRF-Token'] = csrf;
+      }
+    }
   }
   return config;
 }, (error) => Promise.reject(error));
+
+// Auto-retry mechanism for CSRF token expiration/missing
+axios.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // If we get a 403 CSRF token missing error and haven't retried yet
+    if (
+      error.response &&
+      error.response.status === 403 &&
+      error.response.data?.message?.includes('CSRF') &&
+      !originalRequest._retry
+    ) {
+      originalRequest._retry = true;
+      try {
+        // Fetch a fresh CSRF token (our backend now refreshes it on this endpoint)
+        // Add timestamp to prevent browser from returning a cached response without the Set-Cookie header
+        await axios.get(`${API_URL}/auth/me?t=${Date.now()}`, { _retry: true });
+        
+        // Retry the original request (the request interceptor will grab the new cookie)
+        return axios(originalRequest);
+      } catch (retryError) {
+        return Promise.reject(retryError);
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
 
 /**
  * Conference API calls
