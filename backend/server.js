@@ -101,11 +101,17 @@ app.use('/api/', generalLimiter);
 app.use(validateCSRFToken); // Validate CSRF tokens on state-changing requests
 cleanupExpiredTokens(); // Start cleanup routine for expired CSRF tokens
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB, then start server and setup Socket.io
+let dbConnection = null;
+(async () => {
+  try {
+    dbConnection = await connectDB();
+  } catch (err) {
+    dbConnection = null;
+  }
 
-// Setup Socket.io
-setupSocketIO(io);
+  // Setup Socket.io
+  setupSocketIO(io);
 
 // Routes
 app.use('/api/auth', authLimiter, require('./routes/auth'));
@@ -172,12 +178,18 @@ app.use((req, res) => {
   });
 });
 
+})();
+
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
   console.log(`\nServer running on port ${PORT}`);
   console.log(`API Documentation: http://localhost:${PORT}/api`);
-  console.log('MongoDB: connected\n');
+  if (dbConnection && dbConnection.connection && dbConnection.connection.host) {
+    console.log(`MongoDB Connected: ${dbConnection.connection.host}\n`);
+  } else {
+    console.log('MongoDB: NOT connected. Some features may be unavailable.\n');
+  }
 });
 
 module.exports = { app, server, io };
