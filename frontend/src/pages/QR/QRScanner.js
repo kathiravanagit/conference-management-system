@@ -43,7 +43,7 @@ const QRScanner = () => {
       setSuccess('');
       setError('');
 
-      await axios.post('/api/attendance/mark', {
+      await axios.(${API_URL}/attendance/mark', {
         registrationId: qrData.registrationId,
         ticketNumber: qrData.ticketNumber,
       });
@@ -161,7 +161,7 @@ const QRScanner = () => {
     }
 
     try {
-      const registrations = await axios.get('/api/registrations/my');
+      const registrations = await axios.(${API_URL}/registrations/my');
       const registration = registrations.data.registrations?.find(
         (r) => r.ticketNumber === manualTicket && r.conferenceId._id === conferenceId
       );

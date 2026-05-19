@@ -3,6 +3,10 @@ import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import './VirtualAssistant.css';
 
+const API_URL = process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL.replace(/\/$/, '')
+  : '/api';
+
 const BOT_NAME = 'KatBot';
 
 const CATEGORY_COLORS = {
@@ -60,7 +64,7 @@ const VirtualAssistant = () => {
     const inputRef = useRef(null);
 
     useEffect(() => {
-        axios.get('/api/assistant/suggestions', { withCredentials: true })
+        axios.get(`${API_URL}/assistant/suggestions`, { withCredentials: true })
             .then((res) => { if (res.data.success) setSuggestions(res.data.suggestions.slice(0, 5)); })
             .catch((err) => { console.debug('Failed to prefetch suggestions:', err?.response?.data || err.message); });
     }, []);
@@ -128,7 +132,7 @@ const VirtualAssistant = () => {
                 let csrf = getCookie('X-CSRF-Token');
                 if (!csrf) {
                     try {
-                        const sugRes = await axios.get('/api/assistant/suggestions', { withCredentials: true });
+                        const sugRes = await axios.get(`${API_URL}/assistant/suggestions`, { withCredentials: true });
                         // debug: log headers and cookie presence
                         console.debug('Assistant suggestions response headers:', sugRes?.headers);
                         csrf = getCookie('X-CSRF-Token');
@@ -139,7 +143,7 @@ const VirtualAssistant = () => {
                 }
 
                 // Make the assistant request
-                const res = await axios.post('/api/assistant/ask', { question: q }, { withCredentials: true });
+                const res = await axios.post(`${API_URL}/assistant/ask`, { question: q }, { withCredentials: true });
                 setMessages((prev) => [
                     ...prev,
                     { from: 'bot', text: res.data.answer, category: res.data.category, time: new Date() },
@@ -147,8 +151,8 @@ const VirtualAssistant = () => {
         } catch {
                 // Try once more: attempt to fetch CSRF token then retry request
                 try {
-                    await axios.get('/api/assistant/suggestions', { withCredentials: true });
-                    const retry = await axios.post('/api/assistant/ask', { question: q }, { withCredentials: true });
+                    await axios.get(`${API_URL}/assistant/suggestions`, { withCredentials: true });
+                    const retry = await axios.post(`${API_URL}/assistant/ask`, { question: q }, { withCredentials: true });
                     setMessages((prev) => [
                         ...prev,
                         { from: 'bot', text: retry.data.answer, category: retry.data.category, time: new Date() },
