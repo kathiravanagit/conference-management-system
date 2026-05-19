@@ -721,6 +721,13 @@ exports.getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
 
+    // Refresh the CSRF token on page load / returning sessions
+    try {
+      generateCSRFToken(req, res, () => {});
+    } catch (e) {
+      // Non-fatal
+    }
+
     res.status(200).json({
       success: true,
       user,
@@ -1040,7 +1047,14 @@ exports.logout = async (req, res) => {
     res.clearCookie('authToken', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    });
+
+    // Clear CSRF cookie
+    res.clearCookie('X-CSRF-Token', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     });
 
     res.status(200).json({
