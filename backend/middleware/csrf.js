@@ -38,7 +38,6 @@ exports.generateCSRFToken = (req, res, next) => {
       httpOnly: false, // Must be readable by frontend JS
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      path: '/',
       maxAge: CSRF_COOKIE_MAX_AGE,
     });
 
@@ -125,7 +124,6 @@ exports.invalidateCSRFToken = (req, res, next) => {
     httpOnly: false,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    path: '/',
   });
   next();
 };

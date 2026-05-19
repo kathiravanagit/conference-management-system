@@ -24,9 +24,6 @@ const { validateCSRFToken, cleanupExpiredTokens } = require('./middleware/csrf')
 // Initialize express app (must be before any app.* usage)
 const app = express();
 
-// When behind a proxy (e.g. hosting, load balancers), trust the first proxy
-// so secure cookies and IP detection work correctly.
-app.set('trust proxy', 1);
 
 
 
@@ -52,7 +49,6 @@ const io = socketIO(server, {
     },
     methods: ['GET', 'POST'],
     credentials: true,
-    exposedHeaders: ['X-CSRF-Token'],
   },
 });
 
@@ -73,13 +69,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   // Allow CSRF header and cookies for cross-origin requests
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With', 'Cookie'],
-  exposedHeaders: ['X-CSRF-Token'],
 }));
-// Ensure the browser can read the CSRF header if the backend sets it
-app.use((req, res, next) => {
-  res.setHeader('Access-Control-Expose-Headers', 'X-CSRF-Token');
-  next();
-});
 app.use(securityHeaders);
 app.use(attachRequestContext);
 app.use(logRequestLifecycle);
@@ -130,16 +120,6 @@ app.use('/api/staff', require('./routes/staff'));
 app.use('/api/assistant', require('./routes/assistant'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/admin', require('./routes/admin'));
-
-// Conditional debug routes (enable by setting DEBUG_CSRF=true)
-if (process.env.DEBUG_CSRF === 'true') {
-  try {
-    app.use('/api/debug', require('./routes/debug'));
-    console.log('Debug routes enabled: /api/debug/*');
-  } catch (e) {
-    console.warn('Failed to enable debug routes', e.message);
-  }
-}
 
 // Development-only debug routes were removed before deploy
 
