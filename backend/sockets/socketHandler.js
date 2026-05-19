@@ -71,10 +71,25 @@ const normalizeDisplayName = (value = '') => {
   return cleaned.slice(0, 80);
 };
 
-const verifySocketToken = (token) => {
-  if (!token) return null;
+const verifySocketToken = (token, socket) => {
+  // 1. Try to extract from handshake cookie (Secure HTTP-only cookie, most reliable)
+  let actualToken = null;
+  const cookieHeader = socket?.request?.headers?.cookie;
+  if (cookieHeader) {
+    const match = cookieHeader.match(/(?:^|;)\s*authToken\s*=\s*([^;]+)/);
+    if (match) {
+      actualToken = match[1];
+    }
+  }
+
+  // 2. Fallback to passed token
+  if (!actualToken) {
+    actualToken = token;
+  }
+
+  if (!actualToken) return null;
   try {
-    return jwt.verify(token, process.env.JWT_SECRET);
+    return jwt.verify(actualToken, process.env.JWT_SECRET);
   } catch (err) {
     return null;
   }
@@ -216,7 +231,7 @@ const setupSocketIO = (io) => {
         return;
       }
 
-      const decoded = verifySocketToken(payload.token);
+      const decoded = verifySocketToken(payload.token, socket);
       if (!decoded?.id) {
         socket.emit('video-room-auth-error', { message: 'Session expired. Please login again.' });
         return;
