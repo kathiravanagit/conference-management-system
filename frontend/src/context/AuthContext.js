@@ -8,22 +8,24 @@ const API_URL = process.env.REACT_APP_API_URL
 axios.defaults.withCredentials = true;
 
 // Automatically attach CSRF token cookie value as header on all state-changing requests.
-// The backend sets the X-CSRF-Token cookie after login; we just read it and mirror it
-// as a header (Double Submit Cookie pattern — stateless, survives server restarts).
 axios.interceptors.request.use((config) => {
   const method = (config.method || '').toLowerCase();
   if (['post', 'put', 'delete', 'patch'].includes(method)) {
     const csrfCookie = document.cookie
       .split(';')
       .find((c) => c.trim().startsWith('X-CSRF-Token='));
+    let csrfToken = '';
     if (csrfCookie) {
-      const csrfToken = decodeURIComponent(csrfCookie.split('=')[1]?.trim() || '');
-      if (csrfToken) {
-        if (config.headers.set) {
-          config.headers.set('X-CSRF-Token', csrfToken);
-        } else {
-          config.headers['X-CSRF-Token'] = csrfToken;
-        }
+      csrfToken = decodeURIComponent(csrfCookie.split('=')[1]?.trim() || '');
+    }
+    if (!csrfToken) {
+      csrfToken = sessionStorage.getItem('csrfToken') || '';
+    }
+    if (csrfToken) {
+      if (config.headers.set) {
+        config.headers.set('X-CSRF-Token', csrfToken);
+      } else {
+        config.headers['X-CSRF-Token'] = csrfToken;
       }
     }
   }
@@ -32,7 +34,13 @@ axios.interceptors.request.use((config) => {
 
 // Auto-retry mechanism for CSRF token expiration/missing
 axios.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const csrfToken = response.headers['x-csrf-token'] || response.headers['X-CSRF-Token'];
+    if (csrfToken) {
+      sessionStorage.setItem('csrfToken', csrfToken);
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
     if (
@@ -43,7 +51,20 @@ axios.interceptors.response.use(
     ) {
       originalRequest._retry = true;
       try {
-        await axios.get(`${API_URL}/auth/me?t=${Date.now()}`, { _retry: true });
+        const retryRes = await axios.get(`${API_URL}/auth/me?t=${Date.now()}`, { _retry: true });
+        const csrfToken = retryRes.headers['x-csrf-token'] || retryRes.headers['X-CSRF-Token'];
+        if (csrfToken) {
+          sessionStorage.setItem('csrfToken', csrfToken);
+        }
+        // Force the new CSRF token onto the retried request headers
+        const newCsrf = csrfToken || sessionStorage.getItem('csrfToken') || '';
+        if (newCsrf) {
+          if (originalRequest.headers.set) {
+            originalRequest.headers.set('X-CSRF-Token', newCsrf);
+          } else {
+            originalRequest.headers['X-CSRF-Token'] = newCsrf;
+          }
+        }
         return axios(originalRequest);
       } catch (retryError) {
         return Promise.reject(retryError);

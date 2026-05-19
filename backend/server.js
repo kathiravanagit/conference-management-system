@@ -69,6 +69,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   // Allow CSRF header and cookies for cross-origin requests
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With', 'Cookie'],
+  exposedHeaders: ['X-CSRF-Token'],
 }));
 app.use(securityHeaders);
 app.use(attachRequestContext);

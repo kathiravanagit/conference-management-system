@@ -20,7 +20,10 @@ function getCookie(name) {
 axios.interceptors.request.use((config) => {
   const method = (config.method || 'get').toLowerCase();
   if (!['get', 'head', 'options'].includes(method)) {
-    const csrf = getCookie('X-CSRF-Token') || '';
+    let csrf = getCookie('X-CSRF-Token') || '';
+    if (!csrf) {
+      csrf = sessionStorage.getItem('csrfToken') || '';
+    }
     if (csrf) {
       if (config.headers.set) {
         config.headers.set('X-CSRF-Token', csrf);
@@ -34,7 +37,13 @@ axios.interceptors.request.use((config) => {
 
 // Auto-retry mechanism for CSRF token expiration/missing
 axios.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const csrfToken = response.headers['x-csrf-token'] || response.headers['X-CSRF-Token'];
+    if (csrfToken) {
+      sessionStorage.setItem('csrfToken', csrfToken);
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
     
@@ -49,7 +58,21 @@ axios.interceptors.response.use(
       try {
         // Fetch a fresh CSRF token (our backend now refreshes it on this endpoint)
         // Add timestamp to prevent browser from returning a cached response without the Set-Cookie header
-        await axios.get(`${API_URL}/auth/me?t=${Date.now()}`, { _retry: true });
+        const retryRes = await axios.get(`${API_URL}/auth/me?t=${Date.now()}`, { _retry: true });
+        
+        const csrfToken = retryRes.headers['x-csrf-token'] || retryRes.headers['X-CSRF-Token'];
+        if (csrfToken) {
+          sessionStorage.setItem('csrfToken', csrfToken);
+        }
+        // Force the new CSRF token onto the retried request headers
+        const newCsrf = csrfToken || sessionStorage.getItem('csrfToken') || '';
+        if (newCsrf) {
+          if (originalRequest.headers.set) {
+            originalRequest.headers.set('X-CSRF-Token', newCsrf);
+          } else {
+            originalRequest.headers['X-CSRF-Token'] = newCsrf;
+          }
+        }
         
         // Retry the original request (the request interceptor will grab the new cookie)
         return axios(originalRequest);
