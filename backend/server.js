@@ -131,6 +131,16 @@ app.use('/api/assistant', require('./routes/assistant'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/admin', require('./routes/admin'));
 
+// Conditional debug routes (enable by setting DEBUG_CSRF=true)
+if (process.env.DEBUG_CSRF === 'true') {
+  try {
+    app.use('/api/debug', require('./routes/debug'));
+    console.log('Debug routes enabled: /api/debug/*');
+  } catch (e) {
+    console.warn('Failed to enable debug routes', e.message);
+  }
+}
+
 // Development-only debug routes were removed before deploy
 
 
