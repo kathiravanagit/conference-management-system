@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// In development we use the CRA proxy (frontend/package.json -> "proxy")
+// so use relative `/api` paths. In production, set `REACT_APP_API_URL`.
+const API_URL = process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL.replace(/\/$/, '')
+  : '/api';
 
 // Ensure cookies are sent with requests (httpOnly auth cookie, CSRF token cookie)
 axios.defaults.withCredentials = true;

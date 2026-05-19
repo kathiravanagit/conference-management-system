@@ -1,8 +1,12 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 
-axios.defaults.baseURL = process.env.REACT_APP_API_URL ? process.env.REACT_APP_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:5000';
-axios.defaults.withCredentials = true; // Enable cookies in cross-origin requests
+// In development rely on the CRA proxy (set in frontend/package.json) so requests
+// are same-origin and cookies (including CSRF cookie) are accepted by the browser.
+axios.defaults.baseURL = process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL.replace(/\/$/, '')
+  : '';
+axios.defaults.withCredentials = true;
 
 // Automatically attach CSRF token cookie value as header on all state-changing requests.
 // The backend sets the X-CSRF-Token cookie after login; we just read it and mirror it
