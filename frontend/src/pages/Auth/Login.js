@@ -26,7 +26,6 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const redirectParam = new URLSearchParams(location.search).get('redirect');
-  const redirectPath = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/conferences';
 
   // ─── Google Redirect Flow ───────────────────────────────────────────────────
   // Instead of a popup (which browsers block), we redirect the user to Google,
