@@ -244,6 +244,16 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/auth/me`);
+      setUser(response.data.user);
+      return response.data.user;
+    } catch (error) {
+      setUser(null);
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -258,6 +268,7 @@ export const AuthProvider = ({ children }) => {
     changePassword,
     deleteAccount,
     logout,
+    refreshUser,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
     isStaff: user?.role === 'staff',

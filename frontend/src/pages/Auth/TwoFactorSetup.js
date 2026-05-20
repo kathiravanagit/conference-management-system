@@ -18,7 +18,7 @@ const TwoFactorSetup = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -71,6 +71,9 @@ const TwoFactorSetup = () => {
       const nextBackupCodes = response.data?.data?.backupCodes || [];
       setBackupCodes(nextBackupCodes);
       setTwoFactorEnabled(true);
+      if (refreshUser) {
+        await refreshUser();
+      }
       setStep(3);
       setSuccess('2FA Setup complete! Save your backup codes in a safe place.');
     } catch (err) {
@@ -91,6 +94,9 @@ const TwoFactorSetup = () => {
         setError('');
         await axios.post(`${API_URL}/auth/2fa/disable`);
         setTwoFactorEnabled(false);
+        if (refreshUser) {
+          await refreshUser();
+        }
         setStep(1);
         setSuccess('2FA disabled successfully.');
       } catch (err) {
