@@ -905,26 +905,16 @@ exports.googleLogin = async (req, res, next) => {
         const ticket = await client.verifyIdToken({ idToken: credential, audience: process.env.GOOGLE_CLIENT_ID });
         payload = ticket.getPayload();
       } else {
-        // Treat as access token — fetch userinfo
+        // Treat as access token — fetch userinfo using axios for robust Node.js compatibility
         console.log('[Google Auth] Treating credential as access token, fetching userinfo');
-        const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        const axios = require('axios');
+        const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${credential}` }
         });
-        console.log('[Google Auth] Google API response status:', response.status);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('[Google Auth] Google API error:', response.status, errorText);
-          return res.status(401).json({
-            success: false,
-            message: `Invalid Google token: ${response.status}`,
-          });
-        }
-
-        payload = await response.json();
+        payload = response.data;
       }
     } catch (err) {
-      console.error('[Google Auth] Token verification/fetch failed:', err);
+      console.error('[Google Auth] Token verification/fetch failed:', err.message || err);
       return res.status(401).json({ success: false, message: 'Invalid Google credentials' });
     }
     console.log('[Google Auth] User profile retrieved:', payload.email);
@@ -956,6 +946,15 @@ exports.googleLogin = async (req, res, next) => {
         ip: req.ip,
         userAgent: req.get('user-agent'),
       });
+    } else {
+      // If the user already exists (manually registered), automatically confirm their email
+      // since Google has verified their identity.
+      if (!user.isEmailConfirmed) {
+        user.isEmailConfirmed = true;
+        user.isVerified = true;
+        await user.save();
+        console.log(`[Google Auth] Automatically verified and linked manual account for ${email}`);
+      }
     }
 
     // Two factor bypass or require? Let's check:

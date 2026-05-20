@@ -43,14 +43,18 @@ const Login = () => {
         setInfo(result.message || 'Two-factor verification required.');
         return;
       }
-      navigate(redirectPath);
+      const loggedInUser = result?.user || result;
+      const targetPath = location.state?.from || (redirectParam && redirectParam.startsWith('/')
+        ? redirectParam
+        : (['staff', 'it', 'admin'].includes(loggedInUser?.role) ? '/staff/dashboard' : '/dashboard'));
+      navigate(targetPath);
     } catch (err) {
       console.error('[Google Login] Error:', err.response?.data || err.message);
       setError(err.response?.data?.message || 'Google login failed. Please try again.');
     } finally {
       setGoogleLoading(false);
     }
-  }, [googleLogin, navigate, redirectPath]);
+  }, [googleLogin, navigate, location.state, redirectParam]);
 
   // On page load: check if we just returned from Google with a token in the URL hash
   useEffect(() => {
@@ -130,7 +134,10 @@ const Login = () => {
         setError('Invalid credentials');
         return;
       }
-      navigate(redirectPath);
+      const targetPath = location.state?.from || (redirectParam && redirectParam.startsWith('/')
+        ? redirectParam
+        : (['staff', 'it', 'admin'].includes(loggedInUser?.role) ? '/staff/dashboard' : '/dashboard'));
+      navigate(targetPath);
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {
@@ -157,7 +164,10 @@ const Login = () => {
         setError('Invalid credentials');
         return;
       }
-      navigate(redirectPath);
+      const targetPath = location.state?.from || (redirectParam && redirectParam.startsWith('/')
+        ? redirectParam
+        : (['staff', 'it', 'admin'].includes(verifiedUser?.role) ? '/staff/dashboard' : '/dashboard'));
+      navigate(targetPath);
     } catch (err) {
       setError(err.response?.data?.message || '2FA verification failed');
     } finally {

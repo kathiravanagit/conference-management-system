@@ -168,6 +168,11 @@ exports.downloadCertificate = async (req, res, next) => {
     const filePath = path.join(__dirname, '../' + certificate.certificateUrl);
 
     if (!fs.existsSync(filePath)) {
+      const os = require('os');
+      const tempPath = path.join(os.tmpdir(), path.basename(certificate.certificateUrl));
+      if (fs.existsSync(tempPath)) {
+        return res.download(tempPath);
+      }
       return res.status(404).json({
         success: false,
         message: 'Certificate file not found',
@@ -260,7 +265,11 @@ exports.uploadCertificate = async (req, res, next) => {
 
     await Registration.findOneAndUpdate(
       { userId, conferenceId },
-      { certificateGenerated: true },
+      { 
+        certificateGenerated: true,
+        attendanceStatus: true,
+        attendanceTime: new Date()
+      },
       { new: true }
     );
 
