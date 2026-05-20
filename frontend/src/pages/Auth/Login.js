@@ -111,7 +111,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const result = await login(email, password, rememberMe);
+      const result = await login(email, password, role, rememberMe);
       if (result?.confirmationRequired) {
         setInfo(result.message || 'Please check your email to confirm login.');
         return;
@@ -127,7 +127,7 @@ const Login = () => {
       const loggedInUser = result?.user || result;
       if (loggedInUser?.role && loggedInUser.role !== role) {
         logout();
-        setError('Selected role does not match this account.');
+        setError('Invalid credentials');
         return;
       }
       navigate(redirectPath);
@@ -154,7 +154,7 @@ const Login = () => {
       const verifiedUser = await verifyTwoFactor(twoFactorToken, twoFactorCode);
       if (verifiedUser?.role && verifiedUser.role !== role) {
         logout();
-        setError('Selected role does not match this account.');
+        setError('Invalid credentials');
         return;
       }
       navigate(redirectPath);

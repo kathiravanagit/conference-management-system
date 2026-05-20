@@ -37,7 +37,7 @@ const sanitizeMessageText = (text) => {
 };
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const SOCKET_URL = API_URL.replace('/api', '');
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || API_URL.replace('/api', '') || 'http://localhost:5000';
 
 const VideoMeeting = () => {
     const { id: conferenceId } = useParams();

@@ -107,7 +107,7 @@ exports.register = async (req, res, next) => {
  */
 exports.login = async (req, res, next) => {
   try {
-    const { email, password, rememberMe = true } = req.body;
+    const { email, password, role, rememberMe = true } = req.body;
 
     // Validation
     if (!email || !password) {
@@ -145,6 +145,22 @@ exports.login = async (req, res, next) => {
         ip: req.ip,
         userAgent: req.get('user-agent'),
         metadata: { reason: 'Invalid credentials' },
+      });
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+    }
+
+    // Check for role mismatch if role is provided
+    if (role && user.role !== role) {
+      await createAuditLog({
+        userId: user._id,
+        action: 'LOGIN_FAILURE',
+        email: user.email,
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+        metadata: { reason: 'Role mismatch' },
       });
       return res.status(401).json({
         success: false,
@@ -305,6 +321,22 @@ exports.confirmLogin = async (req, res) => {
       ip: req.ip,
       userAgent: req.get('user-agent'),
     });
+
+    // Set httpOnly cookie instead of returning token in body only
+    const maxAge = 30 * 24 * 60 * 60 * 1000; // default to 30 days
+    res.cookie('authToken', authToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge,
+    });
+
+    // Also generate and send a CSRF token (sets header + cookie)
+    try {
+      generateCSRFToken(req, res, () => {});
+    } catch (e) {
+      // Non-fatal
+    }
 
     return res.status(200).json({
       success: true,
@@ -608,7 +640,8 @@ exports.verify2FA = async (req, res) => {
       });
     }
 
-    const authToken = generateToken(user._id, user.role, false);
+    const rememberMe = req.user?.rememberMe !== false;
+    const authToken = generateToken(user._id, user.role, false, rememberMe);
 
     await createAuditLog({
       userId: user._id,
@@ -625,6 +658,22 @@ exports.verify2FA = async (req, res) => {
       ip: req.ip,
       userAgent: req.get('user-agent'),
     });
+
+    // Set httpOnly cookie instead of returning token in body only
+    const maxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    res.cookie('authToken', authToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge,
+    });
+
+    // Also generate and send a CSRF token (sets header + cookie)
+    try {
+      generateCSRFToken(req, res, () => {});
+    } catch (e) {
+      // Non-fatal
+    }
 
     return res.status(200).json({
       success: true,

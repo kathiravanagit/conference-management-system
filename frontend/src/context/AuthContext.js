@@ -103,9 +103,9 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  const login = async (email, password, rememberMe = true) => {
+  const login = async (email, password, role, rememberMe = true) => {
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, { email, password, rememberMe });
+      const response = await axios.post(`${API_URL}/auth/login`, { email, password, role, rememberMe });
       if (response.data.confirmationRequired) {
         return response.data;
       }

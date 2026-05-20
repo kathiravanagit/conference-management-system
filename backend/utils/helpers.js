@@ -6,7 +6,7 @@ const crypto = require('crypto');
  */
 exports.generateToken = (id, role, twoFactorPending = false, rememberMe = true) => {
   const expiresIn = rememberMe ? '30d' : '1d';
-  return jwt.sign({ id, role, twoFactorPending }, process.env.JWT_SECRET, {
+  return jwt.sign({ id, role, twoFactorPending, rememberMe }, process.env.JWT_SECRET, {
     expiresIn: expiresIn,
   });
 };
