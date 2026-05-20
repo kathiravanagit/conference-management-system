@@ -16,6 +16,20 @@ const PasswordSettings = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const getPasswordStrength = (pwd) => {
+    if (!pwd) return null;
+    let score = 0;
+    if (pwd.length >= 8) score++;
+    if (/[A-Z]/.test(pwd)) score++;
+    if (/[0-9]/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    if (score <= 1) return { label: 'Weak', color: '#ef4444', width: '33%' };
+    if (score <= 2) return { label: 'Fair', color: '#f59e0b', width: '66%' };
+    return { label: 'Strong', color: '#22c55e', width: '100%' };
+  };
+
+  const passwordStrength = getPasswordStrength(newPassword);
+
   const handlePasswordSubmit = async (event) => {
     event.preventDefault();
     setError('');
@@ -125,6 +139,14 @@ const PasswordSettings = () => {
                   <EyeIcon open={showNewPassword} />
                 </button>
               </div>
+              {passwordStrength && (
+                <div style={{ marginTop: '6px' }}>
+                  <div style={{ height: '4px', borderRadius: '4px', background: 'var(--surface-300, #e5e7eb)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: passwordStrength.width, background: passwordStrength.color, transition: 'width 0.3s, background 0.3s', borderRadius: '4px' }} />
+                  </div>
+                  <span style={{ fontSize: '0.78rem', color: passwordStrength.color, fontWeight: 600 }}>{passwordStrength.label}</span>
+                </div>
+              )}
             </div>
 
             <div className="form-group">

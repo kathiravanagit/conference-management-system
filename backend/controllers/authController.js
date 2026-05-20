@@ -1,4 +1,7 @@
 const User = require('../models/User');
+const Registration = require('../models/Registration');
+const Feedback = require('../models/Feedback');
+const Certificate = require('../models/Certificate');
 const {
   generateToken,
   generateRandomToken,
@@ -375,10 +378,11 @@ exports.forgotPassword = async (req, res) => {
 
     const user = await User.findOne({ email });
 
+    // Always return 200 to prevent email enumeration attacks
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Email not found',
+      return res.status(200).json({
+        success: true,
+        message: 'If this email is registered, a reset code has been sent.',
       });
     }
 
@@ -399,7 +403,7 @@ exports.forgotPassword = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Password reset code sent to your email',
+      message: 'If this email is registered, a reset code has been sent.',
     });
   } catch (error) {
     return res.status(400).json({
@@ -1059,11 +1063,15 @@ exports.deleteAccount = async (req, res) => {
       metadata: { deletedAt: new Date() }
     });
 
-    // 4. Delete the user
-    await User.findByIdAndDelete(req.user.id);
+    // 4. Cascade delete all user-linked data
+    await Promise.all([
+      Registration.deleteMany({ userId: req.user.id }),
+      Feedback.deleteMany({ userId: req.user.id }),
+      Certificate.deleteMany({ userId: req.user.id }),
+    ]);
 
-    // Note: In an enterprise app, we would also cascade delete to Registrations, Feedback, etc.
-    // For this scope, deleting the auth user is sufficient for the "Danger Zone" demo.
+    // 5. Delete the user account
+    await User.findByIdAndDelete(req.user.id);
 
     res.status(200).json({
       success: true,

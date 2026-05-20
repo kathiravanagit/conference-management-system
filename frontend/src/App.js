@@ -28,6 +28,7 @@ const StaffDashboard = lazy(() => import('./pages/Dashboard/StaffDashboard'));
 const AdminUsers = lazy(() => import('./pages/Admin/AdminUsers'));
 const Meetings = lazy(() => import('./pages/Conferences/Meetings'));
 const VirtualAssistant = lazy(() => import('./components/widgets/VirtualAssistant'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 const RouteFallback = () => <div className="loading">Loading...</div>;
 
@@ -58,7 +59,7 @@ const StaffRoute = ({ children }) => {
     return <Navigate to="/login" />;
   }
 
-  if (!['admin', 'staff'].includes(user.role)) {
+  if (!['admin', 'staff', 'it'].includes(user.role)) {
     return <Navigate to="/" />;
   }
 
@@ -194,7 +195,7 @@ function AppContent() {
                 }
               />
               {/* Analytics route removed for student users */}
-              <Route path="*" element={<Navigate to="/" />} />
+              <Route path="*" element={<Suspense fallback={<RouteFallback />}><NotFound /></Suspense>} />
             </Routes>
           </Suspense>
         </main>

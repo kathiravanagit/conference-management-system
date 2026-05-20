@@ -26,7 +26,20 @@ const Register = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const redirectParam = new URLSearchParams(location.search).get('redirect');
-  const redirectPath = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/conferences';
+
+  const getPasswordStrength = (pwd) => {
+    if (!pwd) return null;
+    let score = 0;
+    if (pwd.length >= 8) score++;
+    if (/[A-Z]/.test(pwd)) score++;
+    if (/[0-9]/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    if (score <= 1) return { label: 'Weak', color: '#ef4444', width: '33%' };
+    if (score <= 2) return { label: 'Fair', color: '#f59e0b', width: '66%' };
+    return { label: 'Strong', color: '#22c55e', width: '100%' };
+  };
+
+  const passwordStrength = getPasswordStrength(formData.password);
 
   // ─── Google Redirect Flow ───────────────────────────────────────────────────
   const handleGoogleToken = useCallback(async (accessToken) => {
@@ -43,14 +56,18 @@ const Register = () => {
         });
         return;
       }
-      navigate(redirectPath);
+      const loggedInUser = result?.user || result;
+      const targetPath = redirectParam && redirectParam.startsWith('/')
+        ? redirectParam
+        : (['staff', 'it', 'admin'].includes(loggedInUser?.role) ? '/staff/dashboard' : '/dashboard');
+      navigate(targetPath);
     } catch (err) {
       console.error('[Google Register] Error:', err.response?.data || err.message);
       setError(err.response?.data?.message || 'Google signup failed. Please try again.');
     } finally {
       setGoogleLoading(false);
     }
-  }, [googleLogin, navigate, redirectPath]);
+  }, [googleLogin, navigate, redirectParam]);
 
   // On page load: check if Google redirected back with a token in the URL hash
   useEffect(() => {
@@ -205,6 +222,14 @@ const Register = () => {
                 <EyeIcon open={showPassword} />
               </button>
             </div>
+            {passwordStrength && (
+              <div style={{ marginTop: '6px' }}>
+                <div style={{ height: '4px', borderRadius: '4px', background: 'var(--surface-300, #e5e7eb)', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: passwordStrength.width, background: passwordStrength.color, transition: 'width 0.3s, background 0.3s', borderRadius: '4px' }} />
+                </div>
+                <span style={{ fontSize: '0.78rem', color: passwordStrength.color, fontWeight: 600 }}>{passwordStrength.label}</span>
+              </div>
+            )}
           </div>
 
           {formData.role !== 'admin' && (

@@ -46,17 +46,15 @@ const ProfileSettings = () => {
       return;
     }
 
-    if (window.confirm('Are you absolutely sure? This action CANNOT be undone, and your data will be permanently wiped.')) {
-      setDeleteLoading(true);
-      setError('');
-      try {
-        await deleteAccount(deletePassword);
-        logout();
-        navigate('/register', { state: { message: 'Your account has been completely wiped from our servers.' } });
-      } catch (err) {
-        setError(err.response?.data?.message || 'Failed to delete account.');
-        setDeleteLoading(false);
-      }
+    setDeleteLoading(true);
+    setError('');
+    try {
+      await deleteAccount(deletePassword);
+      logout();
+      navigate('/register', { state: { message: 'Your account has been completely wiped from our servers.' } });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete account.');
+      setDeleteLoading(false);
     }
   };
 
@@ -135,27 +133,35 @@ const ProfileSettings = () => {
               Delete Account
             </button>
           ) : (
-            <form onSubmit={handleDeleteAccount} className="account-form" style={{ marginTop: '1rem' }}>
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label htmlFor="deletePassword" style={{ color: '#ff4d4f' }}>Confirm Password</label>
-                <input
-                  id="deletePassword"
-                  type="password"
-                  value={deletePassword}
-                  onChange={(e) => setDeletePassword(e.target.value)}
-                  placeholder="Enter your password to verify"
-                  required
-                />
-              </div>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button type="submit" className="btn" style={{ backgroundColor: '#ff4d4f', color: '#fff' }} disabled={deleteLoading}>
-                  {deleteLoading ? 'Wiping Data...' : 'Permanently Delete'}
-                </button>
-                <button type="button" className="btn btn-outline" onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); }}>
-                  Cancel
-                </button>
-              </div>
-            </form>
+            <div style={{ background: 'rgba(255, 77, 79, 0.06)', border: '1px solid rgba(255,77,79,0.25)', borderRadius: '10px', padding: '1.2rem' }}>
+              <p style={{ color: '#ff4d4f', fontWeight: 600, marginTop: 0, marginBottom: '0.6rem' }}>
+                ⚠ Are you absolutely sure?
+              </p>
+              <p style={{ color: '#ccc', fontSize: '0.9rem', marginTop: 0, marginBottom: '1rem' }}>
+                This will permanently delete your account, registrations, certificates, and all associated data. This <strong>cannot be undone</strong>.
+              </p>
+              <form onSubmit={handleDeleteAccount} className="account-form" style={{ marginTop: '0.5rem' }}>
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label htmlFor="deletePassword" style={{ color: '#ff4d4f' }}>Confirm your password</label>
+                  <input
+                    id="deletePassword"
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    placeholder="Enter your password to verify"
+                    required
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button type="submit" className="btn" style={{ backgroundColor: '#ff4d4f', color: '#fff', flex: 1 }} disabled={deleteLoading}>
+                    {deleteLoading ? 'Wiping Data...' : 'Permanently Delete'}
+                  </button>
+                  <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); setError(''); }}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
           )}
         </section>
       </div>
